@@ -134,3 +134,13 @@ def test_expired_session_is_rejected(client):
         session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         db.commit()
     assert client.get("/tickets").status_code == 401
+
+
+def test_frontend_origins_use_port_5173_and_reject_other_ports(client):
+    body = {'category': 'CONNECTIVITY', 'description': 'My eSIM has no internet connection.'}
+    for origin in ('http://localhost:5173', 'http://127.0.0.1:5173'):
+        assert client.post('/customer/intake/summary', json=body, headers={'Origin': origin}).status_code == 200
+    for origin in ('http://localhost:5174', 'http://127.0.0.1:5174', 'https://untrusted.example', 'null'):
+        response = client.post('/customer/intake/summary', json=body, headers={'Origin': origin})
+        assert response.status_code == 403
+        assert response.json()['code'] == 'ORIGIN_NOT_ALLOWED'

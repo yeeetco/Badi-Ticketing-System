@@ -31,3 +31,5 @@ dist-ssr
 __pycache__/
 .pytest_cache/
 .local/
+test-results/
+playwright-report/

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api, ApiError } from '../api'
-import type { Agent, Ticket } from '../api'
+import type { Agent } from '../api'
+import { AgentWorkspace } from './AgentWorkspace'
 
 
 export function AgentPage() {
@@ -63,18 +64,14 @@ export function AgentPage() {
 
   if (checking) return <section><p role="status">Checking agent session…</p></section>
 
+  if (agent) return <AgentWorkspace agent={agent} signOut={signOut} busy={busy} error={error} onSessionExpired={sessionExpired} />
+
   return <section>
     <p className="eyebrow">AGENT WORKSPACE</p>
-    <h1>{agent ? 'Ticket queue' : 'Agent sign-in'}</h1>
+    <h1>Agent sign-in</h1>
     {error && <p className="error" role="alert">{error}</p>}
 
-    {agent ? <>
-      <div className="workspace-heading">
-        <p>Signed in as {agent.name}</p>
-        <button className="secondary-button" onClick={signOut} disabled={busy}>{busy ? 'Signing out…' : 'Sign out'}</button>
-      </div>
-      <TicketQueue onSessionExpired={sessionExpired} />
-    </> : <form className="login-form" onSubmit={signIn}>
+    <form className="login-form" onSubmit={signIn}>
       <p>Sign in with your support agent account to view tickets.</p>
       <label htmlFor="agent-email">Email</label>
       <input id="agent-email" name="email" type="email" autoComplete="username" required maxLength={254} />
@@ -83,52 +80,6 @@ export function AgentPage() {
       <input id="agent-password" name="password" type="password" autoComplete="current-password" required maxLength={256} />
 
       <button className="button" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-    </form>}
+    </form>
   </section>
-}
-
-
-function TicketQueue({ onSessionExpired }: { onSessionExpired: () => void }) {
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [reload, setReload] = useState(0)
-
-  useEffect(() => {
-    let active = true
-
-    // This is real API data, replacing the old frontend mock ticket table.
-    api<Ticket[]>('/tickets')
-      .then((rows) => { if (active) setTickets(rows) })
-      .catch((failure) => {
-        if (!active) return
-        if (failure instanceof ApiError && failure.status === 401) onSessionExpired()
-        else setError(failure.message)
-      })
-      .finally(() => { if (active) setLoading(false) })
-
-    return () => { active = false }
-  }, [reload, onSessionExpired])
-
-  if (loading) return <p role="status">Loading tickets…</p>
-  if (error) return <div role="alert"><p className="error">{error}</p><button className="secondary-button" onClick={() => {
-    setLoading(true)
-    setError('')
-    setReload(reload + 1)
-  }}>Try again</button></div>
-  if (tickets.length === 0) return <p>No tickets yet. Create one through the API or run the demo seed.</p>
-
-  return <>
-    <div className="table-scroll">
-      <table>
-        <caption>Recent support tickets (up to 50)</caption>
-        <thead><tr><th scope="col">Ticket</th><th scope="col">Subject</th><th scope="col">Category</th><th scope="col">Status</th><th scope="col">Priority</th></tr></thead>
-        <tbody>{tickets.map((ticket) => <tr key={ticket.id}>
-          <th scope="row">{ticket.number}</th><td>{ticket.subject}</td><td>{ticket.category.replaceAll('_', ' ')}</td>
-          <td>{ticket.status.replaceAll('_', ' ')}</td><td>{ticket.priority}</td>
-        </tr>)}</tbody>
-      </table>
-    </div>
-    <p className="helper">Ticket conversations and editing controls will be added in the next steps.</p>
-  </>
 }

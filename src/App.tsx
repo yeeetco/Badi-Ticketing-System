@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { HomePage } from './pages/HomePage'
-import { SupportPage } from './pages/PlaceholderPages'
+import { SupportPage } from './pages/SupportPage'
 import { AgentPage } from './pages/AgentPage'
 import './App.css'
 
@@ -27,7 +27,7 @@ export default function App() {
     window.scrollTo(0, 0)
     document.getElementById('content')?.focus()
   }, [path, route])
-  return <div className="app-shell">
+  return <div className={`app-shell ${path === '/agent' ? 'workspace-shell' : ''}`}>
     <header>
       <a className="brand" href="#/" aria-label="Badi eSIM home">badi <span>eSIM</span></a>
       <nav aria-label="Main navigation">

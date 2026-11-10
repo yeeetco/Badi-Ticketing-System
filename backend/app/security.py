@@ -22,8 +22,12 @@ def token_digest(token: str) -> str:
 
 
 def require_agent(db: Db, badi_agent_session: Annotated[str | None, Cookie()] = None) -> Agent:
+    return agent_from_token(db, badi_agent_session)
+
+
+def agent_from_token(db: Session, token: str | None) -> Agent:
     # Every protected endpoint checks the server-side session, regardless of UI.
-    session = db.get(AgentSession, token_digest(badi_agent_session)) if badi_agent_session else None
+    session = db.get(AgentSession, token_digest(token)) if token else None
     if session is None or session.expires_at <= datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Please sign in as a support agent.")
 

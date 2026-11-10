@@ -1,0 +1,35 @@
+# PostgreSQL runs in Docker. FastAPI and Vite still run on Windows.
+name: badi-ticketing
+
+services:
+  db:
+    image: postgres:17.11
+    restart: unless-stopped
+
+    # The bootstrap account creates the database. FastAPI uses the separate
+    # non-superuser 'badi' account created by docker/postgres/init-app.sh.
+    environment:
+      POSTGRES_USER: badi_dev_admin
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run backend/docker_database.py prepare first}
+      BADI_DB_PASSWORD: ${POSTGRES_APP_PASSWORD:?Run backend/docker_database.py prepare first}
+
+    # Expose only to this machine, on a different port from the old database.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55433}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-app.sh:/docker-entrypoint-initdb.d/01-init-app.sh:ro
+
+    # TCP avoids reporting ready during the image's temporary init server.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U badi_dev_admin -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+# This named volume survives container stops and docker compose down.
+volumes:
+  postgres_data:

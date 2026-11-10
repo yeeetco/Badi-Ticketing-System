@@ -1,4 +1,8 @@
-export type Agent = { id: number; name: string; email: string }
+export type Agent = { id: number; name: string; email: string; tier: string; is_available: boolean; max_active_chats: number }
+export type RoutingState = {
+  waiting_count: number
+  agents: { id: number; name: string; tier: string; is_available: boolean; signed_in: boolean; active_chats: number; capacity: number }[]
+}
 
 export type Ticket = {
   id: number
@@ -10,7 +14,43 @@ export type Ticket = {
   priority: string
   assigned_agent_id: number | null
   created_at: string
+  updated_at: string
+  order_id: string | null
 }
+
+export type Message = {
+  id: number
+  sender_role: 'CUSTOMER' | 'AGENT'
+  sender_name: string
+  kind: 'PUBLIC' | 'INTERNAL'
+  body: string
+  created_at: string
+}
+
+export type AuditEvent = {
+  id: number
+  actor: string
+  field: string
+  old_value: string | null
+  new_value: string | null
+  created_at: string
+}
+
+export type TicketDetail = Ticket & { description: string; messages: Message[]; events: AuditEvent[] }
+export type CustomerTicket = Pick<Ticket, 'id' | 'number' | 'subject' | 'status' | 'category' | 'priority' | 'created_at' | 'customer_email' | 'order_id'> & {
+  messages: Message[]
+  routing_state: 'WAITING' | 'ASSIGNED' | 'COMPLETE'
+  queue_position: number | null
+  assigned_agent_name: string | null
+}
+export type CreatedTicket = { ticket: CustomerTicket; access_code: string }
+
+export const statuses = ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'WAITING_FOR_PROVIDER', 'RESOLVED', 'CLOSED']
+export const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+export const categories = ['INSTALLATION', 'ACTIVATION', 'CONNECTIVITY', 'ORDER', 'TOPUP', 'REFUND', 'OTHER']
+
+export const label = (value: string) => value.toLowerCase().replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase())
+export const timestamp = (value: string) => new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export class ApiError extends Error {
   status: number
@@ -37,7 +77,9 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    const message = typeof body?.detail === 'string' ? body.detail : 'Request failed. Check that FastAPI and PostgreSQL are running.'
+    const message = typeof body?.detail === 'string' ? body.detail
+      : Array.isArray(body?.detail) ? body.detail.map((issue: { msg: string }) => issue.msg).join('. ')
+      : 'Request failed. Check that FastAPI and PostgreSQL are running.'
     throw new ApiError(message, response.status)
   }
 

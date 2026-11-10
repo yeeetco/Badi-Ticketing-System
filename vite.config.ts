@@ -5,6 +5,10 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '127.0.0.1',
+    port: 5173,
+    // Refuse a busy port instead of silently choosing an unconfigured origin.
+    strictPort: true,
     // The browser calls /api on Vite; Vite forwards it to FastAPI.
     proxy: {
       '/api': {

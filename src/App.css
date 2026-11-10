@@ -57,3 +57,251 @@ thead { background: #e6efdf; }
   .cards { grid-template-columns: 1fr; }
   section { padding: 44px 0; }
 }
+
+/* Shared forms: labels explain the data; comments above each section explain
+   where to change layout without changing the application behavior. */
+input, textarea, select { font: inherit; color: #193b37; border: 1px solid #ccd8d1; border-radius: 8px; padding: 10px 12px; background: #fff; min-width: 0; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #c6833a; outline-offset: 2px; }
+textarea { resize: vertical; }
+label { font-size: .84rem; font-weight: 600; }
+fieldset { min-width: 0; }
+.muted { color: #6b7d76; font-weight: 400; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.form-panel { border: 1px solid #dce5dc; border-radius: 16px; padding: 30px; background: white; max-width: 800px; }
+.ticket-form { display: flex; flex-direction: column; gap: 20px; }
+.ticket-form label, .queue-toolbar label, .management-controls label { display: flex; flex-direction: column; gap: 7px; }
+.ticket-form input, .ticket-form select, .ticket-form textarea { width: 100%; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.create-dialog { border: 0; border-radius: 18px; padding: 32px; width: min(700px, 92vw); max-height: 90dvh; overflow-y: auto; box-shadow: 0 20px 80px #102d3740; color: #193b37; }
+.create-dialog::backdrop { background: #152c37a6; }
+.access-card { padding: 20px 24px; background: #edf4e2; border: 1px solid #bfcea7; border-radius: 12px; margin: 0 0 24px; }
+.access-card p { margin: 8px 0 14px; font-size: .9rem; }
+.access-card code { display: block; overflow-wrap: anywhere; user-select: all; margin: 14px 0; font-size: .95rem; }
+
+/* Public support area. No staff-only links or management data live here. */
+.customer-support { max-width: 960px; margin: 0 auto; padding: 48px 0; }
+.customer-support h1 { font-size: clamp(2rem, 4vw, 3rem); }
+.support-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 30px 0; }
+.support-option { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 12px; padding: 30px; border: 1px solid #d5dfd7; background: white; border-radius: 16px; color: #193b37; }
+.support-option:hover { border-color: #195a46; background: #f0f6ed; }
+.support-option > span:first-child { width: 42px; height: 42px; display: grid; place-items: center; background: #e7f0e0; border-radius: 12px; font-size: 1.5rem; }
+.support-option strong { font-size: 1.2rem; }
+.support-option > span { color: #52665f; }
+.support-option b { font-size: .85rem; margin-top: 8px; }
+.leave-ticket { margin-top: 20px; }
+
+/* Agent workspace: queue | conversation | case details. */
+.workspace-shell { max-width: 1720px; padding: 0 28px; }
+.workspace-shell > header { padding: 16px 0; }
+.agent-section { padding: 30px 0 36px; }
+.workspace-topbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 24px; }
+.workspace-topbar .eyebrow { margin-bottom: 8px; font-size: .68rem; }
+.workspace-topbar h1 { font-size: 2rem; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+.workspace-topbar p { margin-bottom: 0; font-size: .9rem; }
+.inbox-count { font-size: .8rem; background: #e0eadb; color: #396348; border-radius: 8px; padding: 6px 10px; letter-spacing: 0; }
+.workspace-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.agent-identity { display: flex; align-items: center; gap: 10px; margin-right: 10px; font-size: .85rem; font-weight: 600; }
+.agent-identity small { display: block; color: #728078; font-weight: 400; }
+.avatar { display: grid; place-items: center; background: #e2ebdb; border: 2px solid white; width: 40px; height: 40px; border-radius: 50%; color: #3c6548; }
+.queue-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 16px; border: 1px solid #dce5dc; border-radius: 12px; background: white; margin-bottom: 20px; }
+.queue-toolbar label { flex: 1 1 130px; font-size: .72rem; color: #52665f; }
+.queue-toolbar label.search-field { flex: 2 1 200px; }
+.queue-toolbar input, .queue-toolbar select { width: 100%; font-size: .85rem; }
+.filter-reset { background: none; border: none; color: #42684f; padding: 10px; font-size: .8rem; }
+.agent-workspace { display: grid; grid-template-columns: 295px minmax(320px, 1fr) 265px; border: 1px solid #d7e0da; border-radius: 16px; overflow: hidden; background: white; align-items: stretch; }
+.ticket-queue { display: flex; flex-direction: column; height: 710px; background: #f8faf7; border-right: 1px solid #dce5dc; min-width: 0; }
+.queue-heading { padding: 20px; display: flex; align-items: center; justify-content: space-between; font-size: .85rem; border-bottom: 1px solid #e0e7df; }
+.queue-list { overflow-y: auto; flex: 1; }
+.ticket-row { width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: left; padding: 20px; background: transparent; border: none; border-bottom: 1px solid #e0e7df; border-left: 3px solid transparent; color: #193b37; }
+.ticket-row:hover { background: #edf3e9; }
+.ticket-row.selected { background: #e8f0e1; border-left-color: #2e6b47; }
+.ticket-row-top, .ticket-row-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: .7rem; }
+.ticket-row-top strong { font-size: .76rem; letter-spacing: .03em; }
+.ticket-subject { font-size: .9rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.ticket-customer { font-size: .73rem; color: #728078; overflow-wrap: anywhere; }
+.ticket-row-bottom time { font-size: .65rem; color: #78837d; text-align: right; }
+.queue-footnote { padding: 12px 16px; margin: 0; text-align: center; font-size: .65rem; border-top: 1px solid #e0e7df; }
+.queue-empty { padding: 28px 20px; font-size: .85rem; }
+.queue-empty h2 { font-size: 1.1rem; }
+.conversation-empty { grid-column: 2 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 50px; background: #fefefd; min-height: 500px; }
+.conversation-empty > span { display: grid; place-items: center; width: 80px; height: 80px; background: #edf3e8; border-radius: 24px; font-size: 2.7rem; margin-bottom: 28px; }
+.conversation-empty h2 { max-width: 400px; font-size: 1.6rem; }
+.conversation-empty p { max-width: 380px; font-size: .9rem; }
+.priority-dot { font-size: .65rem; display: inline-flex; align-items: center; gap: 5px; color: #697a70; }
+.priority-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #7e9a84; }
+.priority-high { color: #a15e13; }.priority-high::before { background: #c58831; }
+.priority-urgent { color: #aa352e; }.priority-urgent::before { background: #c75345; }
+.status-pill { display: inline-block; border-radius: 5px; background: #edf1ed; color: #596a60; font-size: .65rem; padding: 3px 7px; line-height: 1.5; font-weight: 600; }
+.status-open { background: #e5eee1; color: #396340; }
+.status-in_progress { background: #e4eef5; color: #38637f; }
+.status-waiting_for_customer, .status-waiting_for_provider { background: #fff0d9; color: #886427; }
+.status-resolved { background: #dff2e8; color: #28684b; }
+.live-indicator { font-size: .67rem; color: #8a6c32; display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.live-indicator::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #c39341; }
+.live-indicator.live { color: #3d7354; }.live-indicator.live::before { background: #518c61; }
+.live-indicator.ended { color: #a54135; }.live-indicator.ended::before { background: #a54135; }
+
+/* Chat is shared by both roles; note styling is agent-only. */
+.conversation-panel { display: flex; flex-direction: column; min-width: 0; background: white; }
+.agent-chat { height: 710px; }
+.customer-chat { height: 720px; border: 1px solid #d7e0da; border-radius: 16px; overflow: hidden; }
+.conversation-header { padding: 22px 24px; border-bottom: 1px solid #e5eae3; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.conversation-header h2 { font-size: 1.15rem; line-height: 1.35; margin: 10px 0 5px; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.conversation-header p { font-size: .75rem; margin: 0; overflow-wrap: anywhere; }
+.ticket-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: .72rem; }
+.service-note { padding: 12px 24px; margin: 0; background: #f3f7ef; font-size: .8rem; }
+.chat-thread { display: flex; flex-direction: column; min-height: 0; flex: 1; position: relative; }
+.messages { flex: 1; min-height: 100px; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; background: #fcfcfa; scroll-behavior: smooth; }
+.conversation-start { text-align: center; color: #859187; font-size: .65rem; margin: 0 0 10px; }
+.message { max-width: 86%; align-self: flex-start; background: #f0f2ed; border: 1px solid #e4e8df; border-radius: 3px 14px 14px 14px; padding: 13px 16px; flex-shrink: 0; }
+.message.own { align-self: flex-end; border-radius: 14px 3px 14px 14px; background: #e8f0e0; border-color: #d8e4d0; }
+.message-author { font-size: .67rem; font-weight: 600; color: #546a55; margin-bottom: 5px; }
+.message p { font-size: .88rem; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 6px; color: #29412e; }
+.message time { display: block; color: #788371; font-size: .6rem; text-align: right; }
+.message.internal-message { align-self: stretch; max-width: 100%; border-radius: 9px; background: #fff3d9; border: 1px dashed #d8b767; }
+.internal-message .message-author { color: #8c661f; }
+.composer { padding: 16px 22px 20px; background: white; border-top: 1px solid #e3e9df; }
+.composer > label { display: block; font-size: .72rem; margin-bottom: 7px; color: #637363; }
+.composer textarea { width: 100%; border-color: #dce3d6; min-height: 80px; max-height: 180px; font-size: .88rem; }
+.composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.composer-bottom .helper { font-size: .63rem; margin: 0; max-width: 270px; }
+.composer-bottom .button { padding: 9px 16px; font-size: .8rem; flex-shrink: 0; }
+.composer-tabs { display: flex; gap: 16px; margin-bottom: 12px; }
+.composer-tabs button { border: 0; background: transparent; padding: 3px 0 7px; font-size: .75rem; color: #75806e; border-bottom: 2px solid transparent; }
+.composer-tabs button[aria-pressed='true'] { border-color: #376e49; color: #295638; font-weight: 600; }
+.note-composer { background: #fffbef; }.note-composer textarea { border-color: #dfc68a; }
+.note-composer .composer-tabs button[aria-pressed='true'] { border-color: #b58a36; color: #8d651d; }
+.new-message-button { position: absolute; bottom: 220px; align-self: center; border: 1px solid #b9cdb2; background: #f0f6e9; color: #356241; border-radius: 20px; padding: 7px 16px; box-shadow: 0 2px 8px #193b3712; font-size: .75rem; }
+
+/* Management updates are persisted by PATCH; the activity list is read-only. */
+.ticket-details { padding: 22px; border-left: 1px solid #dce5dc; height: 710px; overflow-y: auto; }
+.details-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 24px; }
+.details-title h2 { font-size: .95rem; letter-spacing: -.01em; margin: 0; }
+.details-title span { font-size: .65rem; color: #68816a; }
+.management-controls { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 17px; }
+.management-controls label { font-size: .72rem; color: #60715f; }
+.management-controls select { width: 100%; padding: 9px; font-size: .8rem; }
+.management-controls .secondary-button { font-size: .75rem; }
+.case-metadata { margin: 24px 0; padding: 24px 0; border-block: 1px solid #e3e8df; font-size: .75rem; }
+.case-metadata dt { color: #819079; font-size: .65rem; margin-bottom: 4px; }
+.case-metadata dd { margin: 0 0 14px; overflow-wrap: anywhere; }.case-metadata dd:last-child { margin-bottom: 0; }
+.audit-history summary { cursor: pointer; font-size: .8rem; font-weight: 600; }
+.audit-history summary span { font-weight: 400; color: #87947e; margin-left: 6px; }
+.audit-history ol { list-style: none; padding: 0 0 0 12px; margin: 20px 0 0 3px; border-left: 1px solid #dae3d1; }
+.audit-history li { position: relative; margin-bottom: 22px; padding-left: 7px; font-size: .67rem; }
+.audit-history li::before { content: ''; position: absolute; top: 4px; left: -16px; background: #b7c8aa; border: 2px solid white; border-radius: 50%; width: 7px; height: 7px; }
+.audit-history strong { display: block; font-size: .68rem; font-weight: 500; margin-bottom: 6px; }
+.audit-history li span, .audit-history time { display: block; color: #7e8b75; }
+
+@media (max-width: 1250px) {
+  .agent-workspace { grid-template-columns: 280px minmax(0, 1fr); }
+  .ticket-details { grid-column: 1 / -1; height: auto; border-left: 0; border-top: 1px solid #dce5dc; }
+  .management-controls { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; }
+  .case-metadata { display: grid; grid-template-columns: 80px 1fr; gap: 6px 16px; }
+}
+@media (max-width: 800px) {
+  .workspace-shell { padding: 0 16px; }
+  .workspace-topbar { flex-direction: column; align-items: flex-start; gap: 18px; }
+  .workspace-actions { gap: 8px; }.agent-identity { margin-right: 0; }
+  .workspace-actions .button, .workspace-actions .secondary-button { padding: 10px 14px; font-size: .8rem; }
+  .agent-workspace { display: flex; flex-direction: column; }
+  .ticket-queue { height: 330px; border-right: 0; border-bottom: 1px solid #dce5dc; }
+  .ticket-row { padding: 16px 20px; gap: 7px; }
+  .agent-chat { height: 680px; }
+  .conversation-empty { min-height: 320px; padding: 32px; }
+  .queue-toolbar { gap: 10px; padding: 12px; }
+  .queue-toolbar label { flex-basis: 40%; }.queue-toolbar label.search-field { flex-basis: 100%; }
+  .management-controls { grid-template-columns: 1fr; }
+  .support-options, .form-grid { grid-template-columns: 1fr; }
+  .form-panel { padding: 22px; }
+  .conversation-header { padding: 18px; gap: 8px; }
+  .conversation-header .live-indicator { font-size: .6rem; }
+  .messages { padding: 18px; }.message { max-width: 92%; }
+  .composer { padding: 14px; }.composer-bottom { align-items: flex-start; }
+  .customer-chat { height: 700px; }
+  .workspace-shell > header { gap: 8px; }
+}
+
+/* Guided intake replaces the customer's ticket form. Workflow metadata is
+   generated by FastAPI and shown as a read-only chat summary. */
+.intake-panel { display: flex; flex-direction: column; height: 780px; max-height: 90dvh; min-height: 570px; background: white; border: 1px solid #d7e2d6; border-radius: 18px; overflow: hidden; }
+.intake-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 24px 28px 18px; }
+.intake-heading .eyebrow { font-size: .65rem; }.intake-heading h2 { margin: 8px 0 0; font-size: 1.5rem; }
+.intake-history { flex: 1; overflow-y: auto; padding: 24px 28px; background: #fafbf7; }
+.intake-exchange { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.intake-answer { align-self: flex-end; max-width: 85%; background: #e7efdd; border-radius: 14px 3px 14px 14px; padding: 12px 18px; }
+.intake-answer span { font-size: .65rem; color: #68805a; }.intake-answer p { margin: 4px 0 0; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.intake-review { border: 1px solid #d3e1c7; border-radius: 12px; padding: 20px; background: #f0f6e8; }
+.intake-review h3 { font-size: 1.1rem; line-height: 1.4; margin: 10px 0 18px; overflow-wrap: anywhere; }
+.intake-review dl, .generated-ticket-summary dl { display: grid; grid-template-columns: 105px 1fr; gap: 8px 14px; font-size: .8rem; margin: 0; }
+.intake-review dt, .generated-ticket-summary dt { color: #7c8b70; }.intake-review dd, .generated-ticket-summary dd { margin: 0; overflow-wrap: anywhere; }
+.intake-review > p { font-size: .7rem; margin: 18px 0 0; }
+.generated-ticket-summary { padding: 16px 18px; border: 1px solid #dbe4d2; border-radius: 10px; background: #f3f7ed; flex-shrink: 0; }
+.generated-ticket-summary summary { font-size: .72rem; color: #537145; cursor: pointer; }.generated-ticket-summary dl { margin-top: 15px; font-size: .72rem; }
+.routing-banner { display: flex; flex-direction: column; gap: 4px; padding: 14px 24px; background: #f1f6e9; border-bottom: 1px solid #e2e9d9; }
+.routing-banner strong { font-size: .8rem; }.routing-banner span { font-size: .72rem; color: #7a8a6b; }.routing-waiting { background: #fff8e7; }.routing-waiting strong { color: #8c702e; }
+
+/* Agent pool controls describe eligibility, not live presence/read receipts. */
+.routing-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 18px 20px; background: #eef4e7; border: 1px solid #d7e3cd; border-radius: 12px; margin-bottom: 20px; }
+.routing-pool-title { font-size: .8rem; }.routing-pool-title > span { margin-left: 10px; border-radius: 8px; background: white; padding: 4px 8px; font-size: .7rem; }.routing-pool-title small { display: block; color: #74856a; font-size: .65rem; margin-top: 5px; }
+.routing-roster { display: flex; flex-wrap: wrap; gap: 16px; flex: 1; }
+.routing-agent { display: flex; align-items: center; gap: 7px; font-size: .75rem; }.routing-agent small { display: block; color: #76876b; font-size: .62rem; }
+.availability-dot { height: 7px; width: 7px; background: #b6c0ae; border-radius: 50%; }.availability-dot.available { background: #4a8658; }
+.routing-self-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; }.routing-self-controls label { display: flex; flex-direction: column; gap: 5px; font-size: .65rem; }.routing-self-controls select { padding: 7px 10px; font-size: .75rem; }.routing-self-controls button { padding: 8px 12px; font-size: .75rem; }
+.routing-panel > .error { flex-basis: 100%; }
+.ticket-owner { font-size: .65rem; color: #64825c; }
+@media (max-width: 720px) {
+  .intake-heading { padding: 18px; }.intake-heading h2 { font-size: 1.2rem; }
+  .intake-history { padding: 18px; }
+  .intake-answer { max-width: 95%; }
+  .intake-panel { max-height: none; height: 760px; }.intake-review dl { grid-template-columns: 85px 1fr; }
+  .routing-panel { gap: 16px; }.routing-roster { flex-basis: 100%; }.routing-self-controls { width: 100%; justify-content: space-between; }
+}
+
+/* Customer chat uses a conventional header and inline assistant choices.
+   The question sequence stays in state; no numbered progress header is shown. */
+.customer-support.chat-open { padding-top: 28px; }
+.conversational-intake { height: 720px; max-height: 84dvh; min-height: 530px; }
+.conversational-intake .intake-heading { padding: 20px 24px; border-bottom: 1px solid #e2e8dc; }
+.chat-title-block { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.support-avatar { display: grid; place-items: center; flex-shrink: 0; height: 40px; width: 40px; background: #e7efdf; border-radius: 50%; font-size: 1.7rem; font-weight: 800; color: #295c42; }
+.chat-title-block h2 { margin: 0; font-size: 1.1rem; letter-spacing: -.02em; }
+.chat-title-block p { margin: 5px 0 0; font-size: .72rem; color: #7a8972; }
+.chat-close { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border: 0; border-radius: 50%; background: transparent; color: #7b8b72; font-size: 1.5rem; }
+.chat-close:hover { background: #eef3e8; }
+.conversational-intake .intake-history { padding: 24px; background: #fff; }
+.conversational-intake .intake-exchange { margin-bottom: 24px; gap: 12px; }
+.assistant-turn { max-width: 94%; padding: 0; background: none; border: none; }
+.assistant-label { font-size: .65rem; font-weight: 600; color: #7a906d; }
+.assistant-turn > p { margin: 6px 0 0; font-size: .9rem; color: #3f5142; line-height: 1.65; }
+.conversational-intake .intake-answer { padding: 10px 16px; border-radius: 14px 3px 14px 14px; }
+.conversational-intake .intake-answer p { margin: 0; font-size: .85rem; }
+.quick-replies { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.quick-replies button { background: white; border: 1px solid #b8ccac; color: #366347; border-radius: 18px; padding: 8px 14px; font-size: .8rem; line-height: 1.5; text-align: left; }
+.quick-replies button:hover { background: #edf4e7; border-color: #477351; }
+.quick-replies button.confirm-quick-reply { background: #195a46; color: white; border-color: #195a46; }
+.issue-choices { flex-direction: column; align-items: flex-start; }
+.issue-choices button { border-radius: 10px; }
+.compact-review { padding: 14px 16px; margin-top: 14px; background: #f4f8ee; border: 1px solid #e1e9d7; }
+.compact-review h3 { font-size: .95rem; margin: 0 0 8px; line-height: 1.5; }
+.compact-review > p { font-size: .7rem; margin: 0; overflow-wrap: anywhere; }
+.compact-review details { margin-top: 12px; font-size: .72rem; }
+.compact-review summary { cursor: pointer; color: #5d7d4b; }
+.compact-review dl { margin-top: 14px; font-size: .72rem; }
+.compact-review details > p { margin: 12px 0 0; font-size: .65rem; }
+.intake-chat-composer { display: flex; align-items: flex-end; gap: 10px; border-top: 1px solid #e3e9dd; padding: 16px 20px 10px; }
+.intake-chat-composer input, .intake-chat-composer textarea { flex: 1; width: 100%; min-width: 0; background: #fafcf7; border-color: #dfe7d8; font-size: .85rem; }
+.intake-chat-composer textarea { min-height: 66px; max-height: 160px; }
+.intake-chat-composer .button { padding: 10px 15px; font-size: .8rem; flex-shrink: 0; }
+.composer-back { border: none; background: transparent; color: #6b815b; padding: 10px 0; font-size: 1.1rem; }
+.intake-composer-hint { font-size: .62rem; text-align: center; color: #88957b; margin: 0; padding: 0 20px 12px; }
+.intake-error { margin: 0 20px 10px; font-size: .8rem; }
+@media (max-width: 720px) {
+  .conversational-intake { min-height: 520px; height: 670px; max-height: 82dvh; }
+  .conversational-intake .intake-heading { padding: 16px; }.conversational-intake .intake-history { padding: 20px 16px; }
+  .support-avatar { height: 34px; width: 34px; font-size: 1.4rem; }.chat-title-block { gap: 8px; }
+  .chat-title-block h2 { font-size: 1rem; }.chat-title-block p { font-size: .62rem; }
+  .intake-chat-composer { padding: 12px 12px 8px; gap: 7px; }.intake-chat-composer .button { padding: 10px 12px; }
+  .assistant-turn { max-width: 100%; }.quick-replies button { font-size: .75rem; padding: 7px 12px; }
+}
