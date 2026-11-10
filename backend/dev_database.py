@@ -14,11 +14,10 @@ import os
 from pathlib import Path
 import secrets
 import subprocess
-import urllib.request
-import zipfile
 
 import psycopg
 from psycopg import sql
+from sqlalchemy.engine import URL
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,11 +26,12 @@ BIN = LOCAL / "pgsql" / "bin"
 DATA = LOCAL / "postgres-data"
 CONFIG = LOCAL / "postgres-config.json"
 PORT = 55432
-# EDB is the Windows binary distributor linked by postgresql.org.
-ARCHIVE_URL = "https://get.enterprisedb.com/postgresql/postgresql-17.11-5-windows-x64-binaries.zip"
+
 
 
 def run_pg(program, *arguments, check=True):
+    if program not in ('pg_ctl', 'initdb'):
+        raise ValueError('Unsupported local PostgreSQL tool.')
     return subprocess.run(
         [str(BIN / f"{program}.exe"), *map(str, arguments)],
         check=check, creationflags=subprocess.CREATE_NO_WINDOW,
@@ -51,18 +51,7 @@ def setup():
     LOCAL.mkdir(exist_ok=True)
 
     if not (BIN / "pg_ctl.exe").exists():
-        archive = LOCAL / "postgresql.zip"
-        if not archive.exists() or not zipfile.is_zipfile(archive):
-            print("Downloading PostgreSQL binaries from EDB (approximately 382 MB)…", flush=True)
-            urllib.request.urlretrieve(ARCHIVE_URL, archive)
-        with zipfile.ZipFile(archive) as package:
-            # Omit bundled pgAdmin and other tools; the database needs these only.
-            for entry in package.infolist():
-                if entry.filename.startswith(("pgsql/bin/", "pgsql/lib/", "pgsql/share/")):
-                    destination = (LOCAL / entry.filename).resolve()
-                    if not destination.is_relative_to(LOCAL.resolve()):
-                        raise RuntimeError("Archive path escapes the project directory.")
-                    package.extract(entry, LOCAL)
+        raise SystemExit('Automatic legacy binary downloads are disabled. Use scripts/database.ps1 setup for Docker PostgreSQL.')
 
     if not CONFIG.exists():
         if DATA.exists():
@@ -99,15 +88,20 @@ def setup():
             "COOKIE_SECURE=false\n", encoding="utf-8",
         )
 
+    # Pin child commands to this local database, even if backend/.env points
+    # elsewhere. A developer helper must never migrate a different server.
+    local_url = URL.create('postgresql+psycopg', username='badi', password=credentials['database_password'],
+                           host='127.0.0.1', port=PORT, database='badi').render_as_string(hide_password=False)
+    command_env = {**os.environ, 'DATABASE_URL': local_url, 'ENVIRONMENT': 'development'}
     python = Path(__file__).resolve().parent / ".venv" / "Scripts" / "python.exe"
-    subprocess.run([str(python), "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"], cwd=ROOT, check=True)
+    subprocess.run([str(python), "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"], cwd=ROOT, env=command_env, check=True)
 
     agent_file = LOCAL / "agent-credentials.txt"
     if not agent_file.exists():
         agent_file.write_text(f"Email: agent@example.com\nPassword: {secrets.token_urlsafe(18)}\n", encoding="utf-8")
     agent_password = agent_file.read_text(encoding="utf-8").split("Password: ", 1)[1].strip()
     subprocess.run([str(python), "-m", "app.seed"], cwd=ROOT / "backend", check=True,
-                   env={**os.environ, "DEMO_AGENT_PASSWORD": agent_password})
+                   env={**command_env, "DEMO_AGENT_PASSWORD": agent_password})
     print("Local PostgreSQL is ready on 127.0.0.1:55432.")
     print("Agent credentials are in .local/agent-credentials.txt (ignored by Git).")
 

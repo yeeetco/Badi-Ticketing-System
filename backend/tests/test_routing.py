@@ -12,7 +12,7 @@ from app.models import Agent, AgentSession, Ticket
 from app.routing import dispatch_waiting
 from app.schemas import TicketCreate
 from app.security import password_hasher
-from test_agent_access import client, sign_in, TICKET, PASSWORD
+from test_agent_access import client, set_capacity, sign_in, TICKET, PASSWORD
 
 INTAKE = {'customer_email': 'queue@example.com', 'category': 'CONNECTIVITY',
           'description': 'My eSIM is installed but there is no internet. I restarted the phone.'}
@@ -60,21 +60,23 @@ def test_waiting_pool_dispatches_on_login_and_records_assignment(client):
 
 def test_capacity_fifo_pause_resume_and_worker_retry(client):
     sign_in(client)
-    assert client.patch('/agents/me/availability', json={'is_available': True, 'max_active_chats': 1}).status_code == 200
+    set_capacity(client, 1)
+    assert client.patch('/agents/me/availability', json={'is_available': True}).status_code == 200
     first = new_customer(client)
     second = new_customer(client)
     third = new_customer(client)
     assert first['routing_state'] == 'ASSIGNED'
     assert second['queue_position'] == 1 and third['queue_position'] == 2
 
-    client.patch('/agents/me/availability', json={'is_available': False, 'max_active_chats': 1})
+    client.patch('/agents/me/availability', json={'is_available': False})
     client.patch(f"/tickets/{first['id']}", json={'status': 'RESOLVED'})
     # Exercise the same dispatcher the background worker calls.
     for db in app.dependency_overrides[get_db]():
         dispatch_waiting(db)
         db.commit()
     assert client.get(f"/tickets/{second['id']}").json()['assigned_agent_id'] is None
-    client.patch('/agents/me/availability', json={'is_available': True, 'max_active_chats': 1})
+    set_capacity(client, 1)
+    client.patch('/agents/me/availability', json={'is_available': True})
     assert client.get(f"/tickets/{second['id']}").json()['assigned_agent_id'] is not None
     assert client.get(f"/tickets/{third['id']}").json()['assigned_agent_id'] is None
     client.patch(f"/tickets/{second['id']}", json={'status': 'CLOSED'})
@@ -129,7 +131,8 @@ def test_public_cannot_change_availability_and_logout_stops_new_work(client):
 
 def test_concurrent_arrivals_cannot_exceed_agent_capacity(client):
     sign_in(client)
-    client.patch('/agents/me/availability', json={'is_available': True, 'max_active_chats': 1})
+    set_capacity(client, 1)
+    client.patch('/agents/me/availability', json={'is_available': True})
     for db in app.dependency_overrides[get_db]():
         schema = db.scalar(text('SELECT current_schema()'))
 

@@ -5,12 +5,15 @@ import secrets
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .database import engine
 from .models import Agent
 from .security import password_hasher
 
 
 def main():
+    if settings.environment != 'development' or engine.url.host not in ('localhost', '127.0.0.1') or engine.url.database != 'badi':
+        raise SystemExit('This helper is restricted to the local badi development database.')
     if engine.url.host not in ('localhost', '127.0.0.1') or engine.url.database != 'badi':
         raise SystemExit('This bootstrap is only for the local badi development database.')
     with Session(engine) as db:

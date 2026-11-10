@@ -14,6 +14,7 @@ from .models import Agent, Ticket, TicketEvent, TicketMessage
 from .schemas import CustomerTicket, EventRead, MessageRead, TicketCreate, TicketDetail, TicketRead
 from .security import token_digest
 from .routing import ACTIVE_STATUSES, dispatch_waiting, lock_routing
+from .activity import agent_typing, queue_metrics
 
 CUSTOMER_COOKIE = 'badi_customer_ticket'
 
@@ -70,6 +71,8 @@ def customer_view(db: Session, ticket: Ticket) -> CustomerTicket:
         customer_email=ticket.customer_email, order_id=ticket.order_id,
         routing_state='COMPLETE' if complete else 'ASSIGNED' if assigned else 'WAITING',
         queue_position=position, assigned_agent_name=assigned.name if assigned else None,
+        customer_ended_at=ticket.customer_ended_at,
+        agent_is_typing=agent_typing(db, ticket, assigned),
     )
 
 
@@ -121,7 +124,7 @@ def add_message(db: Session, ticket: Ticket, body: str, kind: str, sender_name: 
     return MessageRead.model_validate(message)
 
 
-def queue_view(db: Session, status=None, priority=None, category=None, assigned_agent_id=None, unassigned=False, q='', limit=100, area=None):
+def queue_view(db: Session, status=None, priority=None, category=None, assigned_agent_id=None, unassigned=False, q='', limit=100, area=None, viewer_id=None):
     query = select(Ticket)
     if area:
         query = query.where(Ticket.area == area)
@@ -135,4 +138,5 @@ def queue_view(db: Session, status=None, priority=None, category=None, assigned_
                                 Ticket.customer_email.icontains(q, autoescape=True),
                                 cast(Ticket.id, String).contains(q.upper().removeprefix('BD-'), autoescape=True)))
     rows = db.scalars(query.order_by(Ticket.updated_at.desc(), Ticket.id.desc()).limit(limit)).all()
-    return [TicketRead.model_validate(row) for row in rows]
+    metrics = queue_metrics(db, rows, viewer_id)
+    return [TicketRead.model_validate(row).model_copy(update=metrics[row.id]) for row in rows]

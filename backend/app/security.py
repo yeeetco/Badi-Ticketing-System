@@ -1,4 +1,5 @@
 import hashlib
+import threading
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -11,10 +12,22 @@ from .models import Agent, AgentSession
 
 
 password_hasher = PasswordHash.recommended()
+password_slots = threading.BoundedSemaphore(4)
 # Use a real hash even for an unknown email, avoiding a fast early return.
 dummy_hash = password_hasher.hash("not-a-real-account-password")
 Db = Annotated[Session, Depends(get_db)]
 COOKIE_NAME = "badi_agent_session"
+
+
+def verify_password(password, encoded):
+    # Bound concurrent Argon2 work so unauthenticated requests cannot allocate
+    # the memory cost of dozens of verifications at once.
+    if not password_slots.acquire(blocking=False):
+        raise HTTPException(429, 'Sign-in is busy. Please retry shortly.', headers={'Retry-After': '2'})
+    try:
+        return password_hasher.verify(password, encoded)
+    finally:
+        password_slots.release()
 
 
 def token_digest(token: str) -> str:

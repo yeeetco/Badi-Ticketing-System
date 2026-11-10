@@ -1,3 +1,4 @@
+import { setCapacity } from './helpers'
 import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
@@ -20,7 +21,7 @@ test('navigation, account menu, dated status notes and queue return are usable',
 
     const login = await context.request.post('/api/auth/login', { data: { email: 'agent@example.com', password }, headers })
     const profile = await login.json()
-    await context.request.patch('/api/agents/me/availability', { data: { max_active_chats: 20 }, headers })
+    await setCapacity(context.request, 20)
     const created = await context.request.post('/api/customer/tickets', { data: { customer_email: 'browser-test@example.com', category: 'CONNECTIVITY', description: `Queue return browser check ${Date.now()}. Mobile data is not working.` }, headers })
     const ticket = (await created.json()).ticket
     await page.goto('http://127.0.0.1:5173/#/agent')
@@ -48,7 +49,8 @@ test('navigation, account menu, dated status notes and queue return are usable',
     const detail = await (await context.request.get(`/api/tickets/${ticket.id}`)).json()
     expect(detail.assigned_agent_id).not.toBe(profile.id)
   } finally {
-    await context.request.patch('/api/agents/me/availability', { data: { availability: 'OFFLINE', max_active_chats: 5 }, headers })
+    await setCapacity(context.request, 5)
+    await context.request.patch('/api/agents/me/availability', { data: { availability: 'OFFLINE' }, headers })
     await context.request.post('/api/auth/logout', { headers })
     await context.close()
   }
@@ -103,8 +105,8 @@ test('customer and agent exchange live replies; notes stay private and reconnect
     await agent.getByLabel('Password', { exact: true }).fill(password)
     await agent.getByRole('button', { name: 'Sign in', exact: true }).click()
     await agent.getByLabel('Staff account', { exact: true }).click()
-    originalCapacity = Number(await agent.getByLabel('Chat capacity', { exact: true }).inputValue())
-    await agent.getByLabel('Chat capacity', { exact: true }).selectOption('20')
+    originalCapacity = (await (await agent.request.get('/api/auth/me')).json()).max_active_chats
+    await setCapacity(agent.request, 20)
     await agent.getByRole('button').filter({ hasText: subject }).click()
     await expect(agent.locator('.agent-chat .messages')).toContainText('My eSIM connects')
 
@@ -137,8 +139,8 @@ test('customer and agent exchange live replies; notes stay private and reconnect
     // An unsent public draft belongs to this ticket, even when switching cases.
     await agent.getByRole('button', { name: 'Public reply', exact: true }).click()
     await agent.getByLabel('Your reply', { exact: true }).fill('A draft kept for this case only.')
-    const second = await agent.request.post('/api/tickets', { data: { customer_email: 'browser-test@example.com', category: 'INSTALLATION', subject: `Draft fixture ${ticketId}`, description: 'Temporary second conversation for draft isolation.' }, headers: { Origin: 'http://127.0.0.1:5173' } })
-    const secondId = (await second.json()).id
+    const second = await agent.request.post('/api/customer/tickets', { data: { customer_email: 'browser-test@example.com', category: 'INSTALLATION', description: `Draft fixture ${ticketId}. Temporary second conversation for draft isolation.` }, headers: { Origin: 'http://127.0.0.1:5173' } })
+    const secondId = (await second.json()).ticket.id
     await agent.getByRole('button').filter({ hasText: `Draft fixture ${ticketId}` }).click()
     await expect(agent.getByLabel('Your reply', { exact: true })).toHaveValue('')
     await agent.getByRole('button').filter({ hasText: subject }).click()
@@ -180,9 +182,11 @@ test('customer and agent exchange live replies; notes stay private and reconnect
     await expect(agent.getByRole('button').filter({ hasText: subject })).toBeVisible()
 
     await customer.getByRole('button', { name: 'End Chat', exact: true }).click()
+    await customer.getByRole('button', { name: 'Start Over', exact: true }).click()
     await customer.getByRole('button', { name: 'I have a ticket code', exact: true }).click()
     await customer.getByLabel('Private access code', { exact: true }).fill(created.access_code)
     await customer.getByRole('button', { name: 'Send to assistant' }).click()
+    await customer.getByRole('button', { name: 'View conversation history' }).click()
     await expect(customer.locator('.messages')).toContainText('This reply was sent while your browser was offline.')
     await customer.reload()
     await expect(customer.locator('.messages')).toContainText('Please enable data roaming')
@@ -197,7 +201,8 @@ test('customer and agent exchange live replies; notes stay private and reconnect
     if (ticketId) {
       await agent.request.post('/api/auth/login', { timeout: 5000, data: { email, password }, headers: { Origin: 'http://127.0.0.1:5173' } })
       await agent.request.patch(`/api/tickets/${ticketId}`, { timeout: 5000, data: { status: 'CLOSED' }, headers: { Origin: 'http://127.0.0.1:5173' } })
-      await agent.request.patch('/api/agents/me/availability', { timeout: 5000, data: { is_available: false, max_active_chats: originalCapacity }, headers: { Origin: 'http://127.0.0.1:5173' } })
+      await setCapacity(agent.request, originalCapacity)
+      await agent.request.patch('/api/agents/me/availability', { timeout: 5000, data: { is_available: false }, headers: { Origin: 'http://127.0.0.1:5173' } })
       await agent.request.post('/api/auth/logout', { headers: { Origin: 'http://127.0.0.1:5173' } })
     }
     await customerContext.close()
@@ -221,7 +226,8 @@ test('the background queue worker assigns a waiting case when capacity is freed'
     const pool = await (await context.request.get('/api/routing')).json()
     const self = pool.agents.find((person: { id: number }) => person.id === profile.id)
     expect(self.active_chats).toBeLessThan(20)
-    await context.request.patch('/api/agents/me/availability', { data: { is_available: true, max_active_chats: self.active_chats + 1 }, headers })
+    await setCapacity(context.request, self.active_chats + 1)
+    await context.request.patch('/api/agents/me/availability', { data: { is_available: true }, headers })
 
     async function arrive(description: string) {
       const response = await context.request.post('/api/customer/tickets', { data: { customer_email: 'browser-test@example.com', category: 'CONNECTIVITY', description }, headers })
@@ -247,7 +253,8 @@ test('the background queue worker assigns a waiting case when capacity is freed'
     await page.screenshot({ path: '.local/routed-customer-chat.png', fullPage: true })
   } finally {
     for (const id of ownedTickets) await context.request.patch(`/api/tickets/${id}`, { data: { status: 'CLOSED' }, headers })
-    await context.request.patch('/api/agents/me/availability', { data: { is_available: false, max_active_chats: originalCapacity }, headers })
+    await setCapacity(context.request, originalCapacity)
+    await context.request.patch('/api/agents/me/availability', { data: { is_available: false }, headers })
     await context.request.post('/api/auth/logout', { headers })
     await context.close()
   }
@@ -311,8 +318,8 @@ test('agent parking states and read-only team leader emergency closure work acro
     await agent.getByLabel('Password', { exact: true }).fill(password)
     await agent.getByRole('button', { name: 'Sign in', exact: true }).click()
     await agent.getByLabel('Staff account', { exact: true }).click()
-    originalCapacity = Number(await agent.getByLabel('Chat capacity').inputValue())
-    await agent.getByLabel('Chat capacity').selectOption('20')
+    originalCapacity = (await (await agent.request.get('/api/auth/me')).json()).max_active_chats
+    await setCapacity(agent.request, 20)
     await agent.locator('.ticket-queue').getByRole('button').filter({ hasText: subject }).click()
     await expect(agent.getByRole('link', { name: 'Home', exact: true })).toHaveCount(0)
     await agent.getByLabel('Staff account', { exact: true }).click()
@@ -357,6 +364,7 @@ test('agent parking states and read-only team leader emergency closure work acro
     // reopening it. A remembered cookie still restores the read-only record.
     const code = (await creation.json()).access_code
     await customer.getByRole('button', { name: 'End Chat', exact: true }).click()
+    await customer.getByRole('button', { name: 'Start Over', exact: true }).click()
     await customer.getByRole('button', { name: 'I have a ticket code', exact: true }).click()
     await customer.getByLabel('Private access code', { exact: true }).fill(code)
     await customer.getByRole('button', { name: 'Send to assistant' }).click()
@@ -366,7 +374,8 @@ test('agent parking states and read-only team leader emergency closure work acro
     await expect(customer.locator('.generated-ticket-summary')).toContainText('Closed')
   } finally {
     if (id) await agentContext.request.patch(`/api/tickets/${id}`, { data: { status: 'CLOSED' }, headers })
-    await agentContext.request.patch('/api/agents/me/availability', { data: { availability: 'OFFLINE', max_active_chats: originalCapacity }, headers })
+    await setCapacity(agentContext.request, originalCapacity)
+    await agentContext.request.patch('/api/agents/me/availability', { data: { availability: 'OFFLINE' }, headers })
     await agentContext.request.post('/api/auth/logout', { headers })
     await leaderContext.request.post('/api/auth/logout', { headers })
     await customerContext.close()

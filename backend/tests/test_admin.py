@@ -49,6 +49,7 @@ def test_admin_full_crud_validates_profiles_passwords_duplicates_and_last_admin(
     assert client.get(f"/admin/users/{user['id']}").json()['email'] == USER['email']
     assert client.post('/admin/users', json=USER).status_code == 409
     assert client.post('/admin/users', json={**USER, 'email': 'weak@example.com', 'password': 'weak'}).status_code == 422
+    assert client.post('/admin/users', json={**USER, 'name': 'System update', 'email': 'reserved@example.com'}).status_code == 422
     edited = client.put(f"/admin/users/{user['id']}", json=update_body(user, name='Updated Name', role='TEAM_LEAD'))
     assert edited.status_code == 200 and edited.json()['role'] == 'TEAM_LEAD'
     assert edited.json()['name'] == 'Updated Name'
@@ -89,3 +90,16 @@ def test_delete_handler_preserves_case_and_messages(client):
         ticket = db.get(Ticket, ticket_id)
         assert ticket and ticket.assigned_agent_id is None
     assert len(client.get(f'/customer/tickets/{ticket_id}').json()['messages']) == 1
+
+
+def test_capacity_is_admin_managed_and_forged_agent_request_is_rejected(client):
+    sign_in(client)
+    operator = client.get('/auth/me').json()
+    response = client.patch('/agents/me/availability', json={'max_active_chats': 20, 'availability': 'OFFLINE'})
+    assert response.status_code == 403
+    unchanged = client.get('/auth/me').json()
+    assert unchanged['max_active_chats'] == operator['max_active_chats']
+    assert unchanged['availability'] == 'ONLINE'
+    administrator(client)
+    edited = client.put(f"/admin/users/{operator['id']}", json=update_body(operator, max_active_chats=3))
+    assert edited.status_code == 200 and edited.json()['max_active_chats'] == 3

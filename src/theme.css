@@ -1,0 +1,70 @@
+/* Semantic colors are shared by new UI; explicit overrides cover the original
+   Badi palette. Dark mode never uses a CSS inversion filter on images/PDFs. */
+:root {
+  color-scheme: light;
+  --page: #f8faf7; --surface: #fff; --surface-soft: #f0f4ee;
+  --text: #193b37; --muted: #52665f; --border: #ccd8d1;
+  --accent: #195a46; --accent-hover: #104333; --on-accent: #fff;
+  --accent-soft: #e8f0e0; --warning-soft: #fff3d9; --warning-text: #805c1d;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #101816; --surface: #192420; --surface-soft: #202e28;
+  --text: #e6eee9; --muted: #aabdb1; --border: #41574b;
+  --accent: #28795d; --accent-hover: #328d6e; --on-accent: #fff;
+  --accent-soft: #243d2f; --warning-soft: #3c311d; --warning-text: #f2ce85;
+  color: var(--text); background: var(--page);
+}
+.appearance-tools { display: flex; justify-content: flex-end; padding-top: 12px; }
+.theme-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 24px; font-size: .75rem; }
+.theme-toggle:hover { color: var(--text); }
+:root[data-theme='dark'] p { color: var(--muted); }
+:root[data-theme='dark'] footer { color: var(--muted); }
+:root[data-theme='dark'] .chat-input-shell textarea { background: transparent; }
+:root[data-theme='dark'] :is(input, textarea, select) { background: var(--surface-soft); color: var(--text); border-color: var(--border); }
+:root[data-theme='dark'] :is(input, textarea)::placeholder { color: #a3b6a9; opacity: 1; }
+:root[data-theme='dark'] :is(a:hover, .filter-reset, .eyebrow, .hero h1 span, .staff-signin-brand, .account-online) { color: #8fd4b0; }
+:root[data-theme='dark'] :is(header, footer, th, td, .queue-heading, .conversation-header, .composer, .case-metadata, .audit-history ol, .intake-heading, .faq-list details, .faq-source, .support-contact, .intake-chat-composer, .read-only-conversation) { border-color: var(--border); }
+:root[data-theme='dark'] :is(.cards article, .form-panel, .secondary-button, .support-option, .queue-toolbar, .agent-workspace, .conversation-panel, .composer, .faq-panel, .staff-account-options, .intake-panel, .admin-user-list, .admin-editor, table, .create-dialog) { background: var(--surface); color: var(--text); border-color: var(--border); }
+:root[data-theme='dark'] :is(.support-card, .support-hero, .symbol, .avatar, .support-avatar, .badge, .inbox-count, .access-card, .restored-session, .recovered-ticket, .compact-review, .generated-ticket-summary, .routing-panel, thead) { background: var(--accent-soft); color: var(--text); border-color: var(--border); }
+:root[data-theme='dark'] :is(.support-hero h1 em, .support-promise, .generated-ticket-summary summary, .compact-review summary) { color: #a0d5aa; }
+:root[data-theme='dark'] :is(.ticket-queue, .messages, .intake-history, .conversation-empty, .conversation-state-closed .messages, .conversation-state-resolved .messages, .case-closed > .conversation-header, .read-only-conversation, .routing-complete) { background: var(--page); color: var(--text); border-color: var(--border); }
+:root[data-theme='dark'] :is(.conversation-empty > span, .message, .intake-answer, .ticket-row.case-closed, .ticket-row.case-resolved) { background: var(--surface-soft); color: var(--text); border-color: var(--border); }
+:root[data-theme='dark'] :is(.message.own, .ticket-row.selected, .ticket-row:hover, .ticket-row.case-closed.selected) { background: var(--accent-soft); border-color: #709c7a; }
+:root[data-theme='dark'] :is(.message p, .conversation-state-closed .message:not(.internal-message) p, .intake-answer p, .ticket-row, .ticket-row.case-closed .ticket-subject, .assistant-turn p) { color: var(--text); }
+:root[data-theme='dark'] .conversation-state-closed .message:not(.internal-message), :root[data-theme='dark'] .conversation-state-resolved .message:not(.internal-message) { background: var(--surface-soft); border-color: var(--border); }
+:root[data-theme='dark'] .message.internal-message, :root[data-theme='dark'] .note-composer { background: var(--warning-soft); border-color: #a48849; }
+:root[data-theme='dark'] :is(.internal-message .message-author, .note-composer .composer-tabs button[aria-pressed='true'], .priority-high, .routing-waiting strong, .account-break) { color: var(--warning-text); }
+:root[data-theme='dark'] .routing-banner { background: var(--accent-soft); border-color: var(--border); }
+:root[data-theme='dark'] .routing-waiting { background: var(--warning-soft); }
+:root[data-theme='dark'] :is(.routing-banner span, .message-author, .message time, .conversation-start, .queue-toolbar label, .ticket-customer, .ticket-row-bottom time, .queue-footnote, .priority-dot, .composer > label, .composer-tabs button, .management-controls label, .details-title span, .case-metadata dt, .audit-history summary span, .audit-history li span, .audit-history time, .intake-review dt, .generated-ticket-summary dt, .chat-title-block p, .intake-composer-hint, .faq-topic, .faq-source small, .support-contact > span, .bot-reassurance, .staff-account-menu summary small, .staff-account-options > small, .intake-history time, .ticket-owner) { color: var(--muted); }
+:root[data-theme='dark'] .composer-tabs button[aria-pressed='true'] { color: #8fd4b0; border-color: #8fd4b0; }
+:root[data-theme='dark'] .quick-replies button { background: var(--surface-soft); color: var(--text); border-color: #73977f; }
+:root[data-theme='dark'] :is(.button, .quick-replies .confirm-quick-reply) { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+:root[data-theme='dark'] .button:hover { background: var(--accent-hover); }
+:root[data-theme='dark'] .status-pill { background: #35433d; color: #dce6df; }
+:root[data-theme='dark'] :is(.status-open, .status-resolved) { background: #294b37; color: #b2e1bd; }
+:root[data-theme='dark'] .status-in_progress { background: #253e52; color: #b9daf0; }
+:root[data-theme='dark'] :is(.status-waiting_for_customer, .status-waiting_for_provider) { background: #4b3c22; color: #f2d69a; }
+:root[data-theme='dark'] :is(.emergency-controls, .delete-confirmation, .error) { background: #40251f; border-color: #986455; color: #ffccbd; }
+:root[data-theme='dark'] :is(.emergency-controls p, .audit-reason, .priority-urgent) { color: #f2b7a6; }
+:root[data-theme='dark'] .live-indicator.live { color: #9ad3ad; }
+:root[data-theme='dark'] .avatar { border-color: var(--surface); }
+:root[data-theme='dark'] .new-message-button { background: var(--surface-soft); color: var(--text); border-color: var(--border); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+
+/* Staff dark mode uses neutral slate surfaces. Green remains a small brand
+   accent; amber notes, red unread alerts and blue work states stay distinct. */
+:root[data-theme='dark'][data-workspace='staff'] {
+  --page: #111318; --surface: #1b1e25; --surface-soft: #242832;
+  --text: #edf0f5; --muted: #b1b8c5; --border: #465063;
+  --accent: #347564; --accent-hover: #418b77; --accent-soft: #293542;
+  --warning-soft: #3a3021; --warning-text: #f4cf8b;
+}
+:root[data-theme='dark'][data-workspace='staff'] .ticket-row.selected,
+:root[data-theme='dark'][data-workspace='staff'] .message.own { border-color: #6c829b; }
+:root[data-theme='dark'] .reply-wait { color: #efb5a0; }
+:root[data-theme='dark'][data-workspace='staff'] .message.internal-message.own,
+:root[data-theme='dark'][data-workspace='staff'] .message.internal-message {
+  background: var(--warning-soft); border-color: #a48849;
+}

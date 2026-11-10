@@ -7,12 +7,15 @@ numbers continue increasing so an old case reference cannot name a new case.
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .database import engine
 from .models import Agent, AgentSession, Ticket, TicketEvent, TicketMessage
 from .routing import lock_routing
 
 
 def main():
+    if settings.environment != 'development' or engine.url.host not in ('localhost', '127.0.0.1') or engine.url.database != 'badi':
+        raise SystemExit('This helper is restricted to the local badi development database.')
     if engine.url.host not in ('localhost', '127.0.0.1') or engine.url.database != 'badi':
         raise SystemExit('Refusing to reset anything except the local badi development database.')
     with Session(engine) as db:

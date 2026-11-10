@@ -9,6 +9,8 @@ import { StaffAccountMenu } from '../components/StaffAccountMenu'
 export function AgentWorkspace({ agent, onProfileChange, signOut, busy, error, onSessionExpired }: {
   agent: Agent; onProfileChange: (agent: Agent) => void; signOut: () => void; busy: boolean; error: string; onSessionExpired: () => void
 }) {
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(timer) }, [])
   const [selected, setSelected] = useState<number | null>(null)
   const directory = useLiveQuery<Agent[]>('/agents')
   const agents = directory.data ?? []
@@ -65,9 +67,10 @@ export function AgentWorkspace({ agent, onProfileChange, signOut, busy, error, o
         {!queue.data && !queue.error && <p className="queue-empty" role="status">Loading tickets…</p>}
         {queue.data?.length === 0 && <div className="queue-empty"><h2>No matching tickets</h2><p>New customer conversations appear here when assigned to you.</p></div>}
         <div className="queue-list">{queue.data?.map((ticket) => <button key={ticket.id} className={`ticket-row case-${ticket.status.toLowerCase()} ${selected === ticket.id ? 'selected' : ''}`} aria-pressed={selected === ticket.id} onClick={() => setSelected(ticket.id)}>
-          <span className="ticket-row-top"><strong>{ticket.number}</strong><span className={`priority-dot priority-${ticket.priority.toLowerCase()}`}>{label(ticket.priority)}</span></span>
+          <span className="ticket-row-top"><strong>{ticket.number}</strong>{!supervisor && ticket.unread_count > 0 && <span className="unread-badge" aria-label={`${ticket.unread_count} unread messages`}>{ticket.unread_count}</span>}<span className={`priority-dot priority-${ticket.priority.toLowerCase()}`}>{label(ticket.priority)}</span></span>
           <span className="ticket-subject">{ticket.subject}</span><span className="ticket-customer">{ticket.customer_email}</span>
           <span className="ticket-owner">{ticket.assigned_agent_id === agent.id ? 'Assigned to you' : ticket.assigned_agent_id ? `Assigned to ${agents.find((person) => person.id === ticket.assigned_agent_id)?.name ?? 'support agent'}` : 'Awaiting assignment'}</span>
+          {ticket.awaiting_reply_since && <em className="reply-wait" title={`Awaiting a public reply since ${timestamp(ticket.awaiting_reply_since)}`}>Awaiting reply · {replyAge(ticket.awaiting_reply_since, now)}</em>}
           <span className="ticket-row-bottom"><span className={`status-pill status-${ticket.status.toLowerCase()}`}>{label(ticket.status)}</span><time dateTime={ticket.updated_at}>{timestamp(ticket.updated_at)}</time></span>
         </button>)}</div>
         <p className="queue-footnote">Up to 100 most recently updated tickets</p>
@@ -164,4 +167,9 @@ function AgentConversation({ ticketId, agents, agent, draftCache, onDraftChange 
       <details className="audit-history" open><summary>Activity history <span>{data.events.length}</span></summary><ol>{data.events.map((event) => <li key={event.id}><strong>{event.field === 'created' ? 'Ticket opened' : event.field === 'assigned_agent_id' ? `Assignment: ${assigneeName(event.old_value)} → ${assigneeName(event.new_value)}` : `${label(event.field)}: ${label(event.old_value ?? '')} → ${label(event.new_value ?? '')}`}</strong><span>{event.actor}</span>{event.reason && <p className="audit-reason">{event.reason}</p>}<time dateTime={event.created_at}>{timestamp(event.created_at)}</time></li>)}</ol></details>
     </aside>
   </>
+}
+
+function replyAge(since: string, now: number) {
+  const minutes = Math.max(0, Math.floor((now - new Date(since).getTime()) / 60000))
+  return minutes < 1 ? '<1 min' : `${minutes} ${minutes === 1 ? 'min' : 'mins'}`
 }

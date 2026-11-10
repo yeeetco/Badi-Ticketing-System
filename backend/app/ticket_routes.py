@@ -2,21 +2,22 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from .config import settings
 from .conversations import (CUSTOMER_COOKIE, add_message, agent_view, customer_ticket,
                             customer_view, new_ticket, queue_view, record_event, ticket_or_404, status_note)
 from .live import live_response
-from .models import Agent, Ticket
-from .schemas import (AgentCreated, AgentRead, AvailabilityUpdate, Category, CustomerAccess, CustomerCreated, CustomerIntake,
+from .models import Agent, Ticket, TicketMessage, TicketRead as ReadState, TypingPresence
+from .schemas import (AgentRead, AvailabilityUpdate, Category, CustomerAccess, CustomerCreated, CustomerIntake,
                       CustomerMessageCreate, CustomerTicket, MessageCreate, MessageRead,
                       Priority, Status, SummaryRequest, TicketCreate, TicketDetail, TicketPatch, TicketRead, EmergencyClose,
-                      TransferRequest, ReturnToQueueRequest)
+                      TransferRequest, ReturnToQueueRequest, ReadReceipt, TypingUpdate)
 from .security import COOKIE_NAME, CurrentSupport, CurrentOperator, CurrentLeader, Db, agent_from_token, support_staff, token_digest
 from .intake import summarize_issue
 from .routing import (ACTIVE_STATUSES, active_loads, dispatch_waiting, lock_routing, routing_view,
                       return_to_pool, signed_in_agent_ids)
+from .rate_limits import consume, client_key
 
 router = APIRouter()
 
@@ -48,6 +49,8 @@ def live_agents(request: Request, db: Db):
 
 @router.patch('/agents/me/availability', response_model=AgentRead)
 def update_availability(body: AvailabilityUpdate, db: Db, agent: CurrentOperator):
+    if body.max_active_chats is not None:
+        raise HTTPException(403, 'Chat capacity is managed by an administrator from the staff profile.')
     lock_routing(db)
     state = body.availability
     if state is None and body.is_available is not None:
@@ -55,8 +58,6 @@ def update_availability(body: AvailabilityUpdate, db: Db, agent: CurrentOperator
     if state:
         agent.availability = state
         agent.is_available = state == 'ONLINE'
-    if body.max_active_chats is not None:
-        agent.max_active_chats = body.max_active_chats
     if agent.availability == 'OFFLINE':
         return_to_pool(db, agent.id, 'Agent selected Offline.')
     db.flush()
@@ -80,21 +81,21 @@ def live_routing(request: Request, db: Db):
 
 @router.get('/tickets', response_model=list[TicketRead])
 def tickets(db: Db, agent: CurrentSupport, filters: Filters):
-    return queue_view(db, **filters, area=agent.area)
+    return queue_view(db, **filters, area=agent.area, viewer_id=agent.id if agent.role == 'AGENT' else None)
 
 
 @router.get('/tickets/live')
 def live_queue(request: Request, db: Db, filters: Filters):
     def load():
         staff = support_staff(agent_from_token(db, request.cookies.get(COOKIE_NAME)))
-        return queue_view(db, **filters, area=staff.area)
+        return queue_view(db, **filters, area=staff.area, viewer_id=staff.id if staff.role == 'AGENT' else None)
     return live_response(request, db, load)
 
 
-@router.post('/tickets', response_model=AgentCreated, status_code=201)
-def create_agent_ticket(body: TicketCreate, db: Db, agent: CurrentOperator):
-    ticket, code = new_ticket(db, body, agent)
-    return AgentCreated(**TicketRead.model_validate(ticket).model_dump(), access_code=code)
+@router.post('/tickets', deprecated=True)
+def create_agent_ticket(agent: CurrentOperator):
+    # Removing a button does not remove permission. Retire the old write path.
+    raise HTTPException(403, 'Support requests must be opened by the customer through the support assistant.')
 
 
 @router.get('/tickets/{ticket_id}', response_model=TicketDetail)
@@ -126,6 +127,8 @@ def update_ticket(ticket_id: int, body: TicketPatch, db: Db, agent: CurrentOpera
         raise HTTPException(409, 'This case is waiting in the pool. It must be assigned before workflow changes.')
     if ticket.emergency_closed and changes.get('status', 'CLOSED') != 'CLOSED':
         raise HTTPException(409, 'This case was emergency-closed by a team leader and cannot be reopened here.')
+    if ticket.customer_ended_at and changes.get('status', 'CLOSED') != 'CLOSED':
+        raise HTTPException(409, 'The customer ended this chat. A new conversation must be started for further help.')
     for field, value in changes.items():
         before = getattr(ticket, field)
         if before != value:
@@ -186,12 +189,50 @@ def return_ticket(ticket_id: int, body: ReturnToQueueRequest, db: Db, agent: Cur
 
 @router.post('/tickets/{ticket_id}/messages', response_model=MessageRead, status_code=201)
 def agent_message(ticket_id: int, body: MessageCreate, db: Db, agent: CurrentOperator):
+    consume(db, 'agent-message', str(agent.id), 120, 60)
     ticket = ticket_or_404(db, ticket_id, lock=True, staff=agent)
     if ticket.assigned_agent_id != agent.id:
         raise HTTPException(409, 'This case is parked with another agent or in the pool. It must be assigned to you before you reply.')
     if ticket.emergency_closed:
         raise HTTPException(409, 'This conversation was emergency-closed and is read-only.')
     return add_message(db, ticket, body.body, body.kind, agent.name, 'AGENT')
+
+
+@router.post('/tickets/{ticket_id}/read')
+def mark_read(ticket_id: int, body: ReadReceipt, db: Db, agent: CurrentOperator):
+    consume(db, 'agent-activity', str(agent.id), 180, 60)
+    ticket = ticket_or_404(db, ticket_id, lock=True, staff=agent)
+    if ticket.assigned_agent_id != agent.id:
+        raise HTTPException(409, 'Only the current handler can acknowledge customer messages.')
+    message = db.get(TicketMessage, body.message_id)
+    if not message or message.ticket_id != ticket.id or message.sender_role != 'CUSTOMER' or message.kind != 'PUBLIC':
+        raise HTTPException(422, 'Choose a public customer message in this conversation.')
+    now = datetime.now(timezone.utc)
+    state = db.get(ReadState, (ticket.id, agent.id))
+    if state is None:
+        state = ReadState(ticket_id=ticket.id, agent_id=agent.id, last_message_id=0, seen_at=now)
+        db.add(state)
+    state.last_message_id = max(state.last_message_id, message.id)
+    state.seen_at = now
+    db.execute(update(TicketMessage).where(TicketMessage.ticket_id == ticket.id,
+        TicketMessage.id <= message.id, TicketMessage.sender_role == 'CUSTOMER',
+        TicketMessage.kind == 'PUBLIC', TicketMessage.seen_at.is_(None)).values(seen_at=now))
+    db.commit()
+    return {'last_message_id': state.last_message_id}
+
+
+@router.post('/tickets/{ticket_id}/typing', status_code=204)
+def update_typing(ticket_id: int, body: TypingUpdate, db: Db, agent: CurrentOperator):
+    consume(db, 'agent-activity', str(agent.id), 180, 60)
+    ticket = ticket_or_404(db, ticket_id, lock=True, staff=agent)
+    require_active_handler(ticket, agent)
+    now = datetime.now(timezone.utc)
+    presence = db.get(TypingPresence, (ticket.id, agent.id))
+    if presence is None:
+        presence = TypingPresence(ticket_id=ticket.id, agent_id=agent.id, expires_at=now)
+        db.add(presence)
+    presence.expires_at = now + timedelta(seconds=6) if body.is_typing and body.visibility == 'PUBLIC' else now
+    db.commit()
 
 
 @router.post('/tickets/{ticket_id}/emergency-close', response_model=TicketDetail)
@@ -215,7 +256,8 @@ def set_customer_cookie(response: Response, token: str):
 
 
 @router.post('/customer/tickets', response_model=CustomerCreated, status_code=201)
-def create_customer_ticket(body: CustomerIntake, response: Response, db: Db):
+def create_customer_ticket(body: CustomerIntake, request: Request, response: Response, db: Db):
+    consume(db, 'customer-create', client_key(request), 15 if settings.environment == 'production' else 60, 600)
     # Generate authoritative metadata here; the browser cannot set workflow
     # fields or override the summary, even by sending a forged HTTP request.
     creation = TicketCreate(**body.model_dump(), subject=summarize_issue(body.description, body.category), priority='MEDIUM')
@@ -230,7 +272,8 @@ def preview_summary(body: SummaryRequest):
 
 
 @router.post('/customer/access', response_model=CustomerTicket)
-def access_ticket(body: CustomerAccess, response: Response, db: Db):
+def access_ticket(body: CustomerAccess, request: Request, response: Response, db: Db):
+    consume(db, 'customer-recovery', client_key(request), 30, 300)
     ticket = db.scalar(select(Ticket).where(Ticket.customer_access_hash == token_digest(body.access_code)))
     if ticket is None or (body.ticket_number is not None and ticket.number != body.ticket_number):
         raise HTTPException(401, 'Ticket number or private access code is incorrect.')
@@ -248,6 +291,28 @@ def close_customer_session(response: Response):
     response.delete_cookie(CUSTOMER_COOKIE, httponly=True, secure=settings.cookie_secure, samesite='strict')
 
 
+@router.post('/customer/tickets/{ticket_id}/end', response_model=CustomerTicket)
+def end_customer_chat(ticket_id: int, request: Request, db: Db):
+    # Explicit End Chat is a deliberate exception to agent-managed workflow.
+    # The cookie remains for read-only history until the customer starts over.
+    lock_routing(db)
+    ticket = customer_ticket(db, request.cookies.get(CUSTOMER_COOKIE), ticket_id, lock=True)
+    if ticket.customer_ended_at is None:
+        now = datetime.now(timezone.utc)
+        if ticket.status != 'CLOSED':
+            record_event(db, ticket, ticket.customer_email, 'status', ticket.status, 'CLOSED', reason='Customer ended the chat.')
+            status_note(db, ticket, ticket.customer_email, ticket.status, 'CLOSED', reason='Customer ended the chat.')
+        ticket.status = 'CLOSED'
+        ticket.customer_ended_at = now
+        ticket.updated_at = now
+        db.add(TicketMessage(ticket_id=ticket.id, sender_role='AGENT', sender_name='System update',
+                             kind='PUBLIC', body='You have disconnected. This chat is now closed.', created_at=now))
+        db.flush()
+        dispatch_waiting(db)
+        db.commit()
+    return customer_view(db, ticket)
+
+
 @router.get('/customer/tickets/{ticket_id}', response_model=CustomerTicket)
 def customer_detail(ticket_id: int, request: Request, db: Db):
     return customer_view(db, customer_ticket(db, request.cookies.get(CUSTOMER_COOKIE), ticket_id))
@@ -262,6 +327,8 @@ def live_customer_ticket(ticket_id: int, request: Request, db: Db):
 
 @router.post('/customer/tickets/{ticket_id}/messages', response_model=MessageRead, status_code=201)
 def customer_message(ticket_id: int, body: CustomerMessageCreate, request: Request, db: Db):
+    customer_ticket(db, request.cookies.get(CUSTOMER_COOKIE), ticket_id)
+    consume(db, 'customer-message', request.cookies.get(CUSTOMER_COOKIE, ''), 60, 60)
     ticket = customer_ticket(db, request.cookies.get(CUSTOMER_COOKIE), ticket_id, lock=True)
     if ticket.status in ('RESOLVED', 'CLOSED'):
         raise HTTPException(409, 'This conversation is complete. You can view its history or start a new chat for more help.')

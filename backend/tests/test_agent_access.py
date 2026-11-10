@@ -71,6 +71,14 @@ def sign_in(client):
     return response
 
 
+def set_capacity(client, value):
+    """Configure a routing fixture directly; operators cannot edit capacity."""
+    agent_id = client.get('/auth/me').json()['id']
+    for db in app.dependency_overrides[get_db]():
+        db.get(Agent, agent_id).max_active_chats = value
+        db.commit()
+
+
 def test_public_cannot_read_or_create_tickets(client):
     assert client.get("/tickets").status_code == 401
     assert client.post("/tickets", json=TICKET).status_code == 401
@@ -101,21 +109,23 @@ def test_login_queue_and_logout_revoke_session(client):
 
 def test_creation_uses_postgres_number_and_open_status(client):
     sign_in(client)
-    first = client.post("/tickets", json=TICKET)
+    assert client.post("/tickets", json=TICKET).status_code == 403
+    intake = {key: TICKET[key] for key in ("customer_email", "category", "description")}
+    first = client.post("/customer/tickets", json=intake)
     assert first.status_code == 201
-    assert first.json()["number"] == "BD-1001"
-    assert first.json()["status"] == "OPEN"
-    second = client.post("/tickets", json=TICKET)
-    assert second.json()["number"] == "BD-1002"
+    assert first.json()["ticket"]["number"] == "BD-1001"
+    assert first.json()["ticket"]["status"] == "OPEN"
+    second = client.post("/customer/tickets", json=intake)
+    assert second.json()["ticket"]["number"] == "BD-1002"
     assert len(client.get("/tickets").json()) == 2
 
 
 def test_validation_rejects_blank_subject_and_unknown_priority(client):
     sign_in(client)
-    assert client.post("/tickets", json={**TICKET, "subject": "   "}).status_code == 422
-    assert client.post("/tickets", json={**TICKET, "priority": "CRITICAL"}).status_code == 422
+    assert client.post("/customer/tickets", json={"customer_email":"customer@example.com", "category":"CONNECTIVITY", "description":"   "}).status_code == 422
+    assert client.post("/customer/tickets", json={**TICKET, "priority": "CRITICAL"}).status_code == 422
     # The caller cannot bypass the OPEN workflow by supplying their own status.
-    assert client.post("/tickets", json={**TICKET, "status": "CLOSED"}).status_code == 422
+    assert client.post("/customer/tickets", json={**TICKET, "status": "CLOSED"}).status_code == 422
 
 
 def test_cross_origin_and_missing_origin_writes_are_rejected(client):

@@ -3,7 +3,9 @@ import { HomePage } from './pages/HomePage'
 import { SupportPage } from './pages/SupportPage'
 import { FaqPage } from './pages/FaqPage'
 import { AgentPage } from './pages/AgentPage'
+import { ThemeToggle } from './components/ThemeToggle'
 import './App.css'
+import './theme.css'
 
 // Hash URLs support refresh and browser Back/Forward without server setup.
 const routes = {
@@ -27,6 +29,7 @@ export default function App() {
   const Page = route?.component
   useEffect(() => {
     document.title = `${route?.title ?? 'Page not found'} | Badi eSIM`
+    document.documentElement.dataset.workspace = ['/agent', '/admin'].includes(path) ? 'staff' : 'public'
     window.scrollTo(0, 0)
     document.getElementById('content')?.focus()
   }, [path, route])
@@ -39,6 +42,7 @@ export default function App() {
         <a href="#/faq" aria-current={path === '/faq' ? 'page' : undefined}>FAQ</a>
       </nav>
     </header>}
+    <div className="appearance-tools"><ThemeToggle /></div>
     <main id="content" tabIndex={-1}>{Page ? <Page /> : <section><h1>Page not found</h1><a href="#/">Back to home</a></section>}</main>
     {!['/agent', '/admin'].includes(path) && <footer>Badi eSIM · Stay connected, wherever you go.</footer>}
   </div>

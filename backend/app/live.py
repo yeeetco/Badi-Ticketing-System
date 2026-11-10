@@ -13,6 +13,9 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import OperationalError
 from starlette.concurrency import run_in_threadpool
+from starlette.background import BackgroundTask
+from . import stream_limits
+from .security import token_digest, COOKIE_NAME
 
 
 def encode_snapshot(value):
@@ -51,5 +54,16 @@ def live_response(request: Request, db, loader):
             db.rollback()
 
     initial = load()  # Return a normal 401/404 before starting an invalid stream.
-    return StreamingResponse(snapshot_events(request, load, initial), media_type='text/event-stream',
+    cookie = 'badi_customer_ticket' if request.url.path.startswith('/customer/') else COOKIE_NAME
+    lease = stream_limits.acquire(token_digest(request.cookies.get(cookie, '')))
+
+    async def events():
+        try:
+            async for event in snapshot_events(request, load, initial):
+                stream_limits.touch(lease)
+                yield event
+        finally:
+            stream_limits.release(lease)
+    return StreamingResponse(events(), media_type='text/event-stream',
+                             background=BackgroundTask(stream_limits.release, lease),
                              headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'})

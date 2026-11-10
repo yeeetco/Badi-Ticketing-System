@@ -17,12 +17,12 @@ export function StaffAccountMenu({ agent, onProfileChange, signOut, signingOut }
     return () => document.removeEventListener('pointerdown', dismiss)
   }, [])
 
-  async function update(availability: Availability, capacity = agent.max_active_chats) {
+  async function update(availability: Availability) {
     setBusy(true)
     setError('')
     try {
       onProfileChange(await api<Agent>('/agents/me/availability', {
-        method: 'PATCH', body: JSON.stringify({ availability, max_active_chats: capacity }),
+        method: 'PATCH', body: JSON.stringify({ availability }),
       }))
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update your availability.') }
     finally { setBusy(false) }
@@ -34,7 +34,7 @@ export function StaffAccountMenu({ agent, onProfileChange, signOut, signingOut }
       <strong>{agent.name}</strong><small>{agent.email}</small>
       {agent.role === 'AGENT' && <>
         <label>Agent status<select aria-label="Agent status" value={agent.availability} disabled={busy} onChange={(event) => void update(event.target.value as Availability)}><option value="ONLINE">Online</option><option value="BREAK">Break</option><option value="OFFLINE">Offline</option></select></label>
-        <label>Chat capacity<select aria-label="Chat capacity" value={agent.max_active_chats} disabled={busy} onChange={(event) => void update(agent.availability, Number(event.target.value))}>{Array.from({ length: 20 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select></label>
+
       </>}
       {error && <p className="error" role="alert">{error}</p>}
       <button className="secondary-button" onClick={signOut} disabled={signingOut || busy}>{signingOut ? 'Signing out…' : 'Sign out'}</button>

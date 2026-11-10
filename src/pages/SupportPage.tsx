@@ -12,7 +12,6 @@ export function SupportPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [restored, setRestored] = useState(false)
-  const [ended, setEnded] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -28,14 +27,24 @@ export function SupportPage() {
 
   async function create(data: Record<string, string | null>) {
     const result = await api<CreatedTicket>('/customer/tickets', { method: 'POST', body: JSON.stringify(data) })
-    setEnded(false)
     setAccessCode(result.access_code)
     setError('')
     setRestored(false)
     setTicket(result.ticket)
   }
 
-  async function leave() {
+  async function endChat() {
+    if (!ticket) return
+    setBusy(true)
+    setError('')
+    try {
+      setTicket(await api<CustomerTicket>(`/customer/tickets/${ticket.id}/end`, { method: 'POST' }))
+      setRestored(false)
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not end the chat. Please try again.') }
+    finally { setBusy(false) }
+  }
+
+  async function startOver() {
     setBusy(true)
     setError('')
     try {
@@ -43,15 +52,14 @@ export function SupportPage() {
       setTicket(null)
       setAccessCode('')
       setRestored(false)
-      setEnded(true)
-    } catch { setError('We couldn’t end this chat just yet. Your current conversation is still saved—please try again.') }
+    } catch { setError('Could not start over. Your saved history is still here; please try again.') }
     finally { setBusy(false) }
   }
 
   return <section className="badi-help-page">
-    <div className="support-hero"><span className="eyebrow">BADI HELP & CARE</span><h1>Your journey.<br /><em>We’re here for it.</em></h1><p>From your first connection to the next destination, a little help is always close. Find an answer or tell us what’s happening—we’ll take it from here.</p><div className="support-promise"><span>✓ Saved conversations</span><span>✓ A real support team</span><span>✓ Help at your pace</span></div></div>
+    <div className="support-hero compact-support-hero"><span className="eyebrow">BADI HELP & CARE</span><h1>A little help. Wherever you are.</h1><p>Tell us what’s happening. We’ll help you get connected.</p></div>
     <div className="support-page-grid support-chat-only"><div className="support-chat-column" id="support-chat">
-      {ended && <p className="restored-session" role="status">Thank you for chatting with Badi. Your conversation is saved; use your private code to return. Your agent will continue to manage the case.</p>}
+
       {error && <p className="error" role="alert">{error}</p>}
       {checking ? <div className="form-panel"><p role="status">Welcome to Badi. Let me check for a saved conversation…</p></div> : ticket ? <>
         {restored && <p className="restored-session" role="status">Welcome back. We’ve brought your saved conversation with us.</p>}
@@ -61,23 +69,28 @@ export function SupportPage() {
           const link = document.createElement('a'); link.href = url; link.download = `${ticket.number}-access.txt`; link.click()
           setTimeout(() => URL.revokeObjectURL(url), 1000)
         }}>Save access details</button></details>}
-        <CustomerConversation key={ticket.id} ticketId={ticket.id} onEnd={leave} ending={busy} />
+        <CustomerConversation key={ticket.id} ticket={ticket} onEnd={endChat} onStartOver={startOver} busy={busy} />
 
-      </> : <CustomerBot onCreate={create} onResume={(value) => { setTicket(value); setRestored(true); setEnded(false) }} />}
+      </> : <CustomerBot onCreate={create} onResume={(value) => { setTicket(value); setRestored(true) }} />}
     </div></div>
     <div className="support-contact"><strong>However your trip unfolds, we’re with you.</strong><span>Prefer email? <a href="mailto:support@badiesim.com">support@badiesim.com</a></span></div>
   </section>
 }
 
-function CustomerConversation({ ticketId, onEnd, ending }: { ticketId: number; onEnd: () => void; ending: boolean }) {
-  const endpoint = `/customer/tickets/${ticketId}`
-  const { data, error } = useLiveQuery<CustomerTicket>(endpoint)
-  if (!data) return <div className="form-panel"><p role={error ? 'alert' : 'status'}>{error || 'Let’s bring your conversation back…'}</p></div>
+function CustomerConversation({ ticket: initial, onEnd, onStartOver, busy }: {
+  ticket: CustomerTicket; onEnd: () => void; onStartOver: () => void; busy: boolean
+}) {
+  const endpoint = `/customer/tickets/${initial.id}`
+  const live = useLiveQuery<CustomerTicket>(endpoint)
+  // The end response is authoritative immediately, before its SSE snapshot.
+  const data = initial.customer_ended_at && !live.data?.customer_ended_at ? initial : live.data ?? initial
+  const error = live.error
+  const ended = !!data.customer_ended_at
   const complete = ['CLOSED', 'RESOLVED'].includes(data.status)
   return <div className={`customer-chat conversation-panel case-${data.status.toLowerCase()}`}>
-    <div className="conversation-header"><div><div className="ticket-meta"><strong>{data.number}</strong></div><h2>{data.routing_state === 'ASSIGNED' ? `Chat with ${data.assigned_agent_name}` : complete ? 'Your saved conversation' : 'Chat with an Agent'}</h2><p>{data.subject}</p></div><button className="secondary-button" onClick={onEnd} disabled={ending}>{ending ? 'Ending…' : 'End Chat'}</button></div>
-    <div className={`routing-banner routing-${data.routing_state.toLowerCase()}`} role="status"><strong>{data.routing_state === 'WAITING' ? `You’re in the queue · Position ${data.queue_position ?? '—'}` : data.routing_state === 'ASSIGNED' ? `Your case is with ${data.assigned_agent_name}` : `Conversation ${label(data.status).toLowerCase()}`}</strong><span>{data.routing_state === 'WAITING' ? 'Thank you for your patience. Your place and messages are saved; we’ll connect you as soon as an agent has room to help.' : complete ? 'Thank you for reaching out. Your history is safe here. If you still need help, you can start another chat.' : 'You’re in good hands. If your agent becomes unavailable, we’ll keep your case safe and find the next available teammate.'}</span></div>
+    <div className="conversation-header"><div><div className="ticket-meta"><strong>{data.number}</strong>{ended && <span className="status-pill status-closed">Disconnected</span>}</div><h2>{ended ? 'Chat closed' : data.routing_state === 'ASSIGNED' ? `Chat with ${data.assigned_agent_name}` : complete ? 'Your saved conversation' : 'Chat with an Agent'}</h2><p>{data.subject}</p></div>{!ended && <button className="secondary-button" onClick={onEnd} disabled={busy}>{busy ? 'Ending…' : 'End Chat'}</button>}</div>
+    {!ended && <div className={`routing-banner routing-${data.routing_state.toLowerCase()}`} role="status"><strong>{data.routing_state === 'WAITING' ? `You’re in the queue · Position ${data.queue_position ?? '—'}` : data.routing_state === 'ASSIGNED' ? `Your case is with ${data.assigned_agent_name}` : `Conversation ${label(data.status).toLowerCase()}`}</strong><span>{data.routing_state === 'WAITING' ? 'Thank you for your patience. Your place and messages are saved; we’ll connect you as soon as an agent has room to help.' : complete ? 'Thank you for reaching out. Your history is safe here. If you still need help, you can start another chat.' : 'You’re in good hands. If your agent becomes unavailable, we’ll keep your case safe and find the next available teammate.'}</span></div>}
     {error && <p className="error" role="alert">{error}</p>}
-    <ChatThread messages={data.messages} endpoint={endpoint} caseStatus={data.status} readOnly={complete} readOnlyReason="This conversation is complete. Its history is saved; start another chat if you still need a hand." intro={<details className="generated-ticket-summary"><summary>Your ticket details · {data.number}</summary><dl><dt>Customer</dt><dd>{data.customer_email}</dd><dt>Order ID</dt><dd>{data.order_id || 'Not provided'}</dd><dt>Category</dt><dd>{label(data.category)}</dd><dt>Subject</dt><dd>{data.subject}</dd><dt>Status</dt><dd>{label(data.status)}</dd><dt>Priority</dt><dd>{label(data.priority)}</dd></dl></details>} />
+    <ChatThread typingName={data.agent_is_typing ? data.assigned_agent_name ?? 'Agent' : undefined} messages={data.messages} endpoint={endpoint} caseStatus={data.status} readOnly={complete || ended} readOnlyReason={ended ? 'You have disconnected. This chat is closed and its history is saved.' : 'This conversation is complete. Its history is saved.'} readOnlyAction={<button className="button" onClick={onStartOver} disabled={busy}>{busy ? 'Resetting…' : 'Start Over'}</button>} intro={<details className="generated-ticket-summary"><summary>Your ticket details · {data.number}</summary><dl><dt>Customer</dt><dd>{data.customer_email}</dd><dt>Order ID</dt><dd>{data.order_id || 'Not provided'}</dd><dt>Category</dt><dd>{label(data.category)}</dd><dt>Subject</dt><dd>{data.subject}</dd><dt>Status</dt><dd>{label(data.status)}</dd><dt>Priority</dt><dd>{label(data.priority)}</dd></dl></details>} />
   </div>
 }

@@ -23,7 +23,7 @@ flowchart TD
 | Public replies | Own active ticket | Assigned case | No | No |
 | Upload PDF/images | Own active ticket, one file per message, up to 2 MiB | Download permitted case attachments | Download area case attachments | No |
 | Internal notes | Never exposed | Assigned case | Read only | No |
-| Status and priority | Read only | Assigned case | Emergency close only | No |
+| Status and priority | Read only, except End Chat closes own case | Assigned case | Emergency close only | No |
 | Transfer / return to queue | No | Assigned active case | No | No |
 | Online / Break / Offline | Not applicable | Account menu | Not routed | Not routed |
 | Read/create/edit/delete staff | No | No | No | Yes, across support areas |
@@ -107,9 +107,54 @@ For this local version the database stores small files. If later traffic require
 object storage, keep the same authorization checks and metadata contract, and
 move only the binary payload storage behind the download service.
 
-`End Chat` sits on the right of the customer conversation header. It clears the
-HttpOnly customer session through `/customer/logout`, preserves the case and
-its status, and returns to the assistant with a saved-history message. The private
-code can restore access. Status remains agent-controlled. The customer header no
-longer shows the Open pill or live connection label; ticket number, queue messaging,
-and status in expandable case details remain available.
+`End Chat` calls `POST /customer/tickets/{id}/end`, which atomically closes the
+case, records the customer disconnection time, adds a dated public chat event
+and private status note, and releases routing capacity. Repeated requests are
+idempotent. Customer-ended conversations cannot be reopened. The cookie remains
+valid for read-only history; refresh preserves the closed view.
+
+Start Over appears inside the conversation footer. It calls `/customer/logout`,
+clears React conversation/draft/access-code state, closes its SSE stream, and
+returns to a clean assistant with no old ticket, status, queue or agent header.
+The existing case remains in PostgreSQL; its private code can restore history.
+
+## Current UI and theme
+
+- The compact Badi Help & Care banner leaves more space for the conversation.
+- The customer input has a paperclip inside its left edge and send icon on the
+  right. Validation remains PDF/images up to 2 MiB.
+- Attachment clicks open an authorized preview dialog. Only Download initiates
+  a download. Blob URLs are revoked on close. A lazy-loaded local PDF.js worker
+  renders PDF pages to canvas with page controls; PDF scripts and annotations
+  are not mounted. Media retains its original colors in dark mode. See
+  [the official PDF.js rendering examples](https://mozilla.github.io/pdf.js/examples/index.html).
+- Administrator has navigation, a searchable/filterable staff table, ten-row
+  pagination, profile dialogs, and a Roles & Permissions view.
+- Agent account menus expose availability and sign-out. Administrator controls
+  capacity from staff profiles. Forged operator capacity writes return 403,
+  without applying accompanying availability changes.
+- `ThemeToggle.tsx` stores only the appearance preference in localStorage. The
+  system preference supplies the initial default. `theme.css` provides distinct
+  surfaces, text, focus, input, case-state and internal-note colors without
+  inverting media. The saved theme is applied before the first paint.
+
+## Message activity
+
+The assigned agent's chat acknowledges public customer messages when visible
+inside both the conversation viewport and browser window. Background tabs,
+offscreen messages and preview dialogs do not acknowledge unseen content.
+Receipts persist in SQL and appear as small italic Seen labels. Leaders and
+administrators cannot create operator receipts.
+
+Public draft input sends a short typing lease with no draft text. It stops on
+inactivity, switching to notes, hiding/leaving the conversation, or expiry. The
+server expires typing after six seconds and checks assignment, availability
+and session freshness before exposing it to customers.
+
+Each agent has a monotonic ticket read cursor. Active unread cases have a red
+count. Awaiting reply uses the earliest customer message after the latest public
+human-agent reply. Notes, acknowledgements, assignment and hold/status changes
+do not reset that clock. Closed/resolved cases hide active alerts.
+
+See the [security review](security-review-2026-11-10.md) for file hardening,
+throttling, response policies and remaining deployment requirements.

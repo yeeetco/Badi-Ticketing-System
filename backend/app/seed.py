@@ -5,12 +5,15 @@ import os
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .database import engine
 from .models import Agent, Ticket, TicketEvent, TicketMessage
 from .security import password_hasher
 
 
 def main():
+    if settings.environment != 'development' or engine.url.host not in ('localhost', '127.0.0.1') or engine.url.database != 'badi':
+        raise SystemExit('This helper is restricted to the local badi development database.')
     with Session(engine) as db:
         email = "agent@example.com"
         if db.scalar(select(Agent).where(Agent.email == email)) is None:

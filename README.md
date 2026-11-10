@@ -42,6 +42,7 @@ For a fresh checkout, install the frontend/Python dependencies first:
 ```powershell
 npm.cmd install
 py -3.13 -m venv backend/.venv
+backend/.venv/Scripts/python.exe -m pip install --upgrade pip
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements-lock.txt
 ```
 
@@ -108,6 +109,7 @@ Run these commands in PowerShell from the project root. Python 3.13+ is required
 ```powershell
 npm.cmd install
 py -3.13 -m venv backend/.venv
+backend/.venv/Scripts/python.exe -m pip install --upgrade pip
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements-lock.txt
 backend/.venv/Scripts/python.exe backend/dev_database.py setup
 ```
@@ -138,7 +140,7 @@ backend/.venv/Scripts/python.exe backend/dev_database.py start
 In one terminal, run the API:
 
 ```powershell
-backend/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+backend/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --no-proxy-headers --reload
 ```
 
 In another terminal, run the frontend:
@@ -317,7 +319,7 @@ allowed Origin header. Vite forwards `/api/...` to FastAPI on port 8000.
 | GET | `/help/faq` | Reviewed local FAQ revision and attribution |
 | GET | `/auth/me`, `/agents` | Agent profile / assignment directory |
 | GET | `/tickets` | Agent queue: status, priority, category, assigned_agent_id, unassigned, q, limit |
-| POST | `/tickets` | Agent-created ticket; returns private customer code once |
+| POST | `/tickets` | Retired: operator creation is denied; use customer intake |
 | GET / PATCH | `/tickets/{id}` | Agent conversation / audited case management |
 | POST | `/tickets/{id}/messages` | Agent PUBLIC reply or INTERNAL note |
 | POST | `/tickets/{id}/emergency-close` | Area team leader only; mandatory audited reason |
@@ -413,7 +415,8 @@ creates the first local admin without changing an existing administrator.
 Customer chat supports one PDF, PNG, JPEG, GIF, or WebP attachment per message,
 up to 2 MiB. Validation happens in both React and FastAPI; PostgreSQL persists
 bytes privately. Customer and staff downloads require case access. End Chat
-clears the customer browser session and preserves the agent-controlled case.
+closes the case and keeps read-only history; Start Over clears the customer
+browser session and resets the chat.
 The agent workspace has no new-ticket control; transfer choices expand only
 after Transfer conversation is clicked.
 
@@ -429,3 +432,29 @@ Browser checks also cover attachment validation, live delivery, downloads,
 session ending, conditional transfer controls, and Administrator CRUD on desktop
 and mobile. These checks close their own verification conversations and delete
 only the staff accounts they created.
+
+The latest UI adds a compact support banner, an integrated paperclip/send
+composer, image/PDF previews with explicit downloads, and persistent light/dark
+mode. Capacity is Administrator-managed; agent capacity writes return 403.
+The Administrator directory uses navigation, tables, search, role filters,
+pagination and profile dialogs. Migration 0007 persists customer disconnection
+and idempotent closure. See the [current UI guide](docs/roles-and-access.md#current-ui-and-theme).
+
+## Message activity and security review
+
+Customers see public agent typing and Seen receipts. Agents get red unread
+counts and italic Awaiting reply timers. Only visible customer messages are
+acknowledged; background/offscreen/preview-covered conversations stay unread.
+Internal notes neither publish typing nor reset public reply timers. Staff
+dark mode uses neutral slate/charcoal surfaces.
+
+Migration 0008 adds read cursors, receipt times, six-second typing presence,
+shared request budgets and file quarantine. Writes to `/tickets/{id}/read` and
+`/tickets/{id}/typing` require the current handler. No draft text is sent.
+Customer and queue SSE snapshots carry the resulting metadata automatically.
+
+The [security review](docs/security-review-2026-11-10.md) records patches,
+verification and remaining deployment limits. Uploads are sanitized in a
+time-bounded process and existing files were revalidated. No antivirus service
+is configured. Docker image CVE scanning requires Docker sign-in; this local
+setup is not a completed production security deployment.

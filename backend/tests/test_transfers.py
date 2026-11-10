@@ -4,7 +4,7 @@ from app.database import get_db
 from app.main import app
 from app.models import Ticket
 from app.routing import dispatch_waiting
-from test_agent_access import client, sign_in
+from test_agent_access import client, set_capacity, sign_in
 from test_conversations import create_customer
 from test_staff_roles import login, staff_account
 
@@ -54,7 +54,7 @@ def test_transfer_checks_ownership_area_availability_capacity_and_role(client):
         assert client.post(endpoint, json={'agent_id': target}).status_code == 422
     assert client.post(endpoint, json={'agent_id': other}).status_code == 409
     login(client, 'other@example.com')
-    client.patch('/agents/me/availability', json={'max_active_chats': 1})
+    set_capacity(client, 1)
     # Existing case consumes the receiving agent's only slot.
     occupied = create_customer(client)['ticket']['id']
     sign_in(client)

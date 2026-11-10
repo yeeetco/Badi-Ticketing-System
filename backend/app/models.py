@@ -66,6 +66,7 @@ class Ticket(Base):
     # Persist the returning handler's exclusion across API/worker restarts.
     requeue_agent_id: Mapped[int | None] = mapped_column(ForeignKey('agents.id', ondelete='SET NULL'))
     requeue_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    customer_ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     @property
     def number(self) -> str:
@@ -88,6 +89,29 @@ class TicketMessage(Base):
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     attachments: Mapped[list['Attachment']] = relationship(lazy='selectin', passive_deletes=True)
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TicketRead(Base):
+    __tablename__ = 'ticket_reads'
+    ticket_id: Mapped[int] = mapped_column(ForeignKey('tickets.id', ondelete='CASCADE'), primary_key=True)
+    agent_id: Mapped[int] = mapped_column(ForeignKey('agents.id', ondelete='CASCADE'), primary_key=True)
+    last_message_id: Mapped[int] = mapped_column(Integer, default=0)
+    seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class TypingPresence(Base):
+    __tablename__ = 'typing_presence'
+    ticket_id: Mapped[int] = mapped_column(ForeignKey('tickets.id', ondelete='CASCADE'), primary_key=True)
+    agent_id: Mapped[int] = mapped_column(ForeignKey('agents.id', ondelete='CASCADE'), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class RateLimitBucket(Base):
+    __tablename__ = 'rate_limit_buckets'
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class Attachment(Base):
@@ -101,6 +125,11 @@ class Attachment(Base):
     size: Mapped[int] = mapped_column(Integer)
     # Keep binary data out of message snapshots; downloads have a separate ACL.
     payload: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
+    blocked: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+
+    @property
+    def available(self):
+        return not self.blocked
 
 
 class TicketEvent(Base):

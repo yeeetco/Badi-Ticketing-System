@@ -31,14 +31,14 @@ def test_attachments_are_atomic_persistent_and_private_to_the_case(client):
     message = uploaded.json()
     assert message['body'] == 'My screenshot'
     attachment = message['attachments'][0]
-    assert attachment['filename'] == 'screen.png' and attachment['size'] == len(payload)
+    assert attachment['filename'] == 'screen.png' and 0 < attachment['size'] <= 2097152
     assert 'payload' not in uploaded.text
     downloaded = client.get(f"{endpoint}/{attachment['id']}")
-    assert downloaded.content == payload
+    assert Image.open(BytesIO(downloaded.content)).getpixel((0, 0)) == (0, 128, 0)
     assert 'attachment;' in downloaded.headers['content-disposition']
     assert client.post(endpoint, files={'file': ('order.pdf', pdf_bytes(), 'application/pdf')}).status_code == 201
     sign_in(client)
-    assert client.get(f"/tickets/{ticket_id}/attachments/{attachment['id']}").content == payload
+    assert client.get(f"/tickets/{ticket_id}/attachments/{attachment['id']}").content == downloaded.content
     assert len(client.get(f'/tickets/{ticket_id}').json()['messages'][1]['attachments']) == 1
     # A new customer session cannot read the first customer's attachment.
     create_customer(client)

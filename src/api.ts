@@ -19,9 +19,11 @@ export type Ticket = {
   order_id: string | null
   area: string
   emergency_closed: boolean
+  unread_count: number
+  awaiting_reply_since: string | null
 }
 
-export type Attachment = { id: number; filename: string; content_type: string; size: number }
+export type Attachment = { id: number; filename: string; content_type: string; size: number; available: boolean }
 
 export type Message = {
   id: number
@@ -31,6 +33,7 @@ export type Message = {
   kind: 'PUBLIC' | 'INTERNAL'
   body: string
   created_at: string
+  seen_at: string | null
 }
 
 export type AuditEvent = {
@@ -48,6 +51,8 @@ export type CustomerTicket = Pick<Ticket, 'id' | 'number' | 'subject' | 'status'
   messages: Message[]
   routing_state: 'WAITING' | 'ASSIGNED' | 'COMPLETE'
   queue_position: number | null
+  customer_ended_at: string | null
+  agent_is_typing: boolean
   assigned_agent_name: string | null
 }
 export type CreatedTicket = { ticket: CustomerTicket; access_code: string }

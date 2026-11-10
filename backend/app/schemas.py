@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator, field_validator
 
 Status = Literal['OPEN', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'WAITING_FOR_PROVIDER', 'RESOLVED', 'CLOSED']
 Priority = Literal['LOW', 'MEDIUM', 'HIGH', 'URGENT']
@@ -48,6 +48,13 @@ class StaffCreate(BaseModel):
     max_active_chats: int = Field(default=5, ge=1, le=20)
     is_active: bool = True
 
+    @field_validator('name')
+    @classmethod
+    def reserve_system_name(cls, value):
+        if value.casefold() == 'system update':
+            raise ValueError('Choose a staff name that does not impersonate system activity.')
+        return value
+
 
 class StaffUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra='forbid')
@@ -59,6 +66,13 @@ class StaffUpdate(BaseModel):
     max_active_chats: int = Field(ge=1, le=20)
     is_active: bool
     password: str | None = Field(default=None, min_length=12, max_length=256)
+
+    @field_validator('name')
+    @classmethod
+    def reserve_system_name(cls, value):
+        if value.casefold() == 'system update':
+            raise ValueError('Choose a staff name that does not impersonate system activity.')
+        return value
 
 
 class AvailabilityUpdate(BaseModel):
@@ -117,6 +131,8 @@ class TicketRead(BaseModel):
     order_id: str | None
     area: str
     emergency_closed: bool
+    unread_count: int = 0
+    awaiting_reply_since: datetime | None = None
 
 
 class MessageCreate(BaseModel):
@@ -137,6 +153,7 @@ class AttachmentRead(BaseModel):
     filename: str
     content_type: str
     size: int
+    available: bool = True
 
 
 class MessageRead(BaseModel):
@@ -148,6 +165,7 @@ class MessageRead(BaseModel):
     body: str
     created_at: datetime
     attachments: list[AttachmentRead] = Field(default_factory=list)
+    seen_at: datetime | None = None
 
 
 class EventRead(BaseModel):
@@ -183,6 +201,19 @@ class CustomerTicket(BaseModel):
     routing_state: Literal['WAITING', 'ASSIGNED', 'COMPLETE']
     queue_position: int | None
     assigned_agent_name: str | None
+    customer_ended_at: datetime | None
+    agent_is_typing: bool = False
+
+
+class ReadReceipt(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    message_id: int = Field(gt=0)
+
+
+class TypingUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    is_typing: bool
+    visibility: Literal['PUBLIC', 'INTERNAL'] = 'PUBLIC'
 
 
 class CustomerCreated(BaseModel):
