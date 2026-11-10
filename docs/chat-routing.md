@@ -45,6 +45,9 @@ them. Customer replies do not change status or priority.
 
 ## Durable queue and eligibility
 
+See [staff roles and support sessions](staff-and-support.md) for availability,
+area scoping, session recovery, FAQ revisions and team-leader permissions.
+
 The pool is the set of unassigned active ticket rows in PostgreSQL, not an
 in-memory list of browser connections. A customer can close the browser and
 their case remains queued. Queue position follows creation time, then ID.
@@ -52,13 +55,12 @@ OPEN, IN_PROGRESS, WAITING_FOR_CUSTOMER, and WAITING_FOR_PROVIDER count as
 active work; RESOLVED and CLOSED release capacity.
 
 An automatically eligible agent must be T1, have an unexpired server-side
-login session, be accepting chats, and have fewer active cases than their
+login session and recent heartbeat, be Online, match the support area, and have fewer active cases than their
 configured capacity. Default capacity is five, adjustable from 1 to 20 in the
 agent workspace. Signing in starts accepting; agents can pause/resume, and
 signing out of the last active session stops new assignments. This uses
-explicit shift availability and session validity, not typing indicators or
-browser-presence tracking. Closing a tab alone does not end the eight-hour
-session or automatically pause the agent.
+explicit availability and session freshness, not typing indicators. A stale
+session becomes Offline after the 90-second heartbeat grace period.
 
 `backend/app/routing.py` routes oldest waiting cases first, choosing the
 eligible agent with the lowest active workload. Equal workloads use oldest
@@ -73,8 +75,8 @@ running, so resolving/closing a case frees a slot for a waiting customer.
 Restarting FastAPI resumes from SQL rows. A database failure leaves queued
 cases intact for retry. No extra Redis or task-queue container is required.
 
-Existing assigned cases remain with their owner when that agent pauses or
-signs out. Agents can manually reassign, including to T2 for escalation;
+Existing cases remain parked on Break. Offline and last-session logout return
+active cases to the pool. Agents can hand off within their area, including T2;
 manual assignment is an explicit override and may exceed the automatic
 capacity target. Unassigning puts an active case back into the automatic pool.
 Categories are recorded, but category-specific skill routing is future work.
@@ -84,7 +86,7 @@ Categories are recorded, but category-specific skill routing is future work.
 `src/components/RoutingPanel.tsx` renders the pool size, each agent's workload,
 capacity, and accepting state. Its controls call
 `PATCH /agents/me/availability`; an agent can change only their own readiness
-and capacity. `GET /routing` and `/routing/live` are agent-only.
+and capacity. `GET /routing` and `/routing/live` are area-scoped staff reads.
 
 Customer responses expose only the case's assigned agent name, waiting
 position, and routing state. They never expose the agent roster or private
@@ -94,7 +96,7 @@ without refresh, alongside the persisted messages.
 ## Local sample login
 
 The SQL sample accounts are `agent@example.com` (Badi Support) and
-`mia@example.com` (Mia Support), both T1. The current local demo password is in
+`mia@example.com` (Mia Support), both T1. `lead@example.com` is TEAM_LEAD. The current local demo password is in
 the ignored `.local/agent-credentials.txt`. PostgreSQL stores an Argon2 hash,
 not the plaintext password. These are local development accounts.
 

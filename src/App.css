@@ -305,3 +305,87 @@ fieldset { min-width: 0; }
   .intake-chat-composer { padding: 12px 12px 8px; gap: 7px; }.intake-chat-composer .button { padding: 10px 12px; }
   .assistant-turn { max-width: 100%; }.quick-replies button { font-size: .75rem; padding: 7px 12px; }
 }
+
+/* Badi's dedicated support page: reviewed self-service help beside the
+   session-aware assistant. The FAQ is served from a versioned local snapshot. */
+.badi-help-page { padding: 30px 0 48px; }
+.support-hero { padding: 38px 42px; background: #eaf1e1; border-radius: 22px; margin-bottom: 34px; position: relative; overflow: hidden; }
+.support-hero .eyebrow { font-size: .68rem; }.support-hero h1 { font-size: clamp(2.4rem, 4.5vw, 3.8rem); margin: 14px 0 18px; line-height: 1.05; }
+.support-hero h1 em { color: #51815c; font-style: normal; }.support-hero > p { max-width: 640px; font-size: .95rem; margin-bottom: 22px; }
+.support-promise { display: flex; flex-wrap: wrap; gap: 10px 24px; color: #54764b; font-size: .73rem; }
+.support-page-grid { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 28px; align-items: start; }
+.support-chat-column { min-width: 0; position: sticky; top: 20px; }
+.support-chat-column .conversational-intake { max-height: none; height: 710px; min-height: 560px; }
+.support-chat-column .customer-chat { height: 760px; }
+.faq-panel { min-width: 0; border: 1px solid #dce5d6; border-radius: 16px; background: white; padding: 25px; scroll-margin-top: 20px; }
+.faq-heading .eyebrow { font-size: .6rem; }.faq-heading h2 { margin: 12px 0; font-size: 1.6rem; }.faq-heading > p { font-size: .8rem; }
+.faq-search { display: flex; flex-direction: column; gap: 8px; font-size: .72rem; margin: 22px 0; }.faq-search input { width: 100%; font-size: .8rem; }
+.faq-list details { border-top: 1px solid #e4eadd; padding: 15px 0; }.faq-list summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; cursor: pointer; font-size: .82rem; font-weight: 600; line-height: 1.5; }
+.faq-list summary::-webkit-details-marker { display: none; }.faq-list summary::after { content: '+'; font-size: 1rem; color: #819374; }.faq-list details[open] summary::after { content: '−'; }
+.faq-topic { display: inline-block; margin-top: 12px; font-size: .6rem; color: #7a936d; text-transform: uppercase; letter-spacing: .08em; }.faq-list details > p { font-size: .78rem; margin: 8px 0 0; }
+.faq-source { border-top: 1px solid #e4eadd; padding-top: 20px; font-size: .72rem; }.faq-source small { display: block; color: #8a987f; font-size: .58rem; margin-top: 10px; overflow-wrap: anywhere; }
+.support-contact { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; padding: 28px 0 0; margin-top: 34px; border-top: 1px solid #dce5d5; font-size: .8rem; }.support-contact > span { color: #728569; }
+.restored-session { background: #eaf2e2; border: 1px solid #d6e5c9; border-radius: 9px; padding: 12px 16px; margin: 0 0 14px; font-size: .78rem; }
+.compact-access { padding: 14px 18px; margin-bottom: 14px; }.compact-access summary { cursor: pointer; font-size: .78rem; font-weight: 600; }.compact-access > p { font-size: .75rem; margin-top: 14px; }
+.bot-reassurance { color: #87977a; font-size: .73rem !important; }.recovered-ticket { background: #f1f5eb; border: 1px solid #dae4cf; border-radius: 12px; padding: 18px; margin-top: 20px; }.recovered-ticket > p { font-size: .8rem; margin: 10px 0; }
+.welcome-bot > .filter-reset { margin: 0 0 12px; align-self: flex-start; padding-left: 20px; }
+
+/* Staff entry has its own account header, with no public Home navigation. */
+.staff-signin-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 35px; color: #3f6847; font-weight: 600; }
+.account-state { font-weight: 600; }.account-online { color: #327048; }.account-break { color: #9a712b; }.account-offline { color: #7c8581; }
+.parking-spot { padding: 9px 12px; border: 1px solid #d8e3ce; border-radius: 9px; background: #f8fbf2; color: #37563b; text-align: left; }.parking-spot:hover { background: white; border-color: #79926b; }
+.availability-online { background: #4b8556; }.availability-break { background: #cc9b43; }.availability-offline { background: #a5aca4; }
+.parking-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }.parking-tabs > button { border: 1px solid #d4dfcd; border-radius: 20px; background: white; color: #6a7f5f; padding: 8px 15px; font-size: .77rem; }.parking-tabs > button[aria-pressed='true'] { color: white; background: #285b42; border-color: #285b42; }
+.monitoring-badge { display: inline-block; background: #e1ecf1; color: #476d7c; padding: 7px 12px; border-radius: 8px; font-size: .7rem; }
+.read-only-conversation { padding: 18px 22px; border-top: 1px solid #dce3d5; font-size: .78rem; color: #6f7c68; background: #f4f6f1; }
+.emergency-controls { padding: 15px; border: 1px solid #e8c8c1; border-radius: 10px; background: #fff7f2; }.emergency-controls p { font-size: .75rem; color: #8b6257; }.emergency-controls label { display: flex; flex-direction: column; gap: 8px; font-size: .75rem; }.emergency-controls textarea { width: 100%; font-size: .78rem; }
+.emergency-button { border: 0; border-radius: 8px; background: #943d31; color: white; padding: 10px 14px; font-size: .73rem; }.emergency-button:hover { background: #762e24; }.audit-reason { margin: 7px 0; font-size: .66rem; color: #896357; overflow-wrap: anywhere; }
+
+/* Case colors always have matching text status labels. Private notes retain
+   amber styling in every case state; closed conversations use muted grey. */
+.ticket-row.case-open { border-left-color: #a7c39c; }.ticket-row.case-in_progress { border-left-color: #9cbdce; }
+.ticket-row.case-closed { background: #f2f3f2; border-left-color: #bac2bc; }.ticket-row.case-closed .ticket-subject { color: #758079; }.ticket-row.case-closed.selected { background: #e4e9e5; border-left-color: #7d8f82; }
+.ticket-row.case-resolved { border-left-color: #9cbbc7; background: #f0f6f7; }
+.conversation-state-closed .messages { background: #f5f6f4; }.conversation-state-closed .message:not(.internal-message) { background: #e9ede8; border-color: #d7dfd4; }.conversation-state-closed .message:not(.internal-message) p { color: #697568; }
+.conversation-state-resolved .messages { background: #f2f7f8; }.conversation-state-resolved .message:not(.internal-message) { background: #e9f1f3; border-color: #d6e3e8; }
+.case-closed > .conversation-header { background: #f0f3ef; }.routing-complete { background: #edf1ec; }
+@media (max-width: 900px) {
+  .support-page-grid { grid-template-columns: 1fr; gap: 24px; }.support-chat-column { position: static; grid-row: 1; }
+  .faq-panel { padding: 22px; }.faq-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .support-hero { padding: 28px; }.support-contact { flex-direction: column; }
+}
+@media (max-width: 520px) {
+  .badi-help-page { padding-top: 20px; }.support-hero { padding: 25px 22px; border-radius: 16px; margin-bottom: 22px; }.support-hero h1 { font-size: 2.5rem; }.support-hero > p { font-size: .85rem; }.support-promise { gap: 8px 16px; font-size: .65rem; }
+  .support-chat-column .conversational-intake { height: 650px; min-height: 540px; }.support-chat-column .customer-chat { height: 740px; }
+  .faq-list { display: block; }.parking-tabs { gap: 7px; }.parking-tabs > button { padding: 8px 12px; font-size: .68rem; }
+}
+.support-page-grid.support-chat-only { display: block; max-width: 900px; margin-inline: auto; }
+.faq-page { max-width: 880px; margin: auto; }
+.faq-page .faq-panel { width: 100%; }
+.staff-account-menu { position: relative; }
+.staff-account-menu > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; border-radius: 14px; padding: 8px; }
+.staff-account-menu > summary::-webkit-details-marker { display: none; }
+.staff-account-menu summary small, .staff-account-options > small { display: block; color: #65716b; }
+.staff-account-options { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: min(280px, 85vw); display: grid; gap: 14px; padding: 20px; border: 1px solid #dce5df; border-radius: 16px; background: white; box-shadow: 0 14px 40px #182f2526; }
+.staff-account-options label { display: grid; gap: 6px; }
+.staff-account-options select { width: 100%; padding: 9px; }
+.intake-history time { display: block; color: #65716b; font-size: .72rem; margin-top: 8px; }
+.attachment-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-block: 8px; }
+.customer-chat .conversation-header > div { flex: 1; min-width: 0; }
+.customer-chat .conversation-header > button { margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+.attachment-button { display: inline-flex; align-items: center; gap: 6px; }
+.selected-attachment { overflow-wrap: anywhere; font-size: .85rem; }
+.chat-attachment { display: block; overflow-wrap: anywhere; margin: 8px 0; text-decoration: underline; }
+.chat-attachment small { display: block; font-size: .7rem; margin-top: 4px; }
+.admin-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr); gap: 24px; align-items: start; }
+.admin-user-list, .admin-editor { background: white; border: 1px solid #dce5df; border-radius: 16px; padding: 20px; min-width: 0; }
+.admin-user { border-top: 1px solid #dce5df; padding: 18px 0; }
+.admin-user span, .admin-user small { display: block; overflow-wrap: anywhere; margin-top: 6px; }
+.admin-user-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.staff-editor fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 16px; min-width: 0; }
+.staff-editor label { display: grid; gap: 7px; }
+.staff-editor input, .staff-editor select { width: 100%; padding: 10px; border: 1px solid #c7d6cc; border-radius: 8px; }
+.staff-editor .checkbox-label { display: flex; align-items: center; }
+.staff-editor input[type=checkbox] { width: auto; }
+.delete-confirmation { padding: 12px; background: #fff2e8; border-radius: 10px; margin-top: 12px; }
+@media (max-width: 800px) { .admin-layout { grid-template-columns: 1fr; } .customer-chat .conversation-header { align-items: flex-start; flex-wrap: wrap; } }

@@ -1,4 +1,4 @@
-"""Reset only the two local sample accounts; preserve tickets and real accounts.
+"""Reset only the local sample accounts; preserve tickets and real accounts.
 
 Run from backend: python -m app.demo_accounts
 The password is prompted, or supplied through DEMO_AGENT_PASSWORD. It is never
@@ -23,7 +23,7 @@ def main():
     if len(password) < 12:
         raise SystemExit('Use at least 12 characters.')
     with Session(engine) as db:
-        for email, name in [('agent@example.com', 'Badi Support'), ('mia@example.com', 'Mia Support')]:
+        for email, name, role in [('agent@example.com', 'Badi Support', 'AGENT'), ('lead@example.com', 'Badi Team Lead', 'TEAM_LEAD')]:
             agent = db.scalar(select(Agent).where(Agent.email == email))
             if agent and agent.name != name:
                 raise SystemExit(f'{email} is not the expected sample account; refusing to replace it.')
@@ -33,6 +33,8 @@ def main():
             agent.password_hash = password_hasher.hash(password)
             agent.tier = 'T1'
             agent.is_available = False
+            agent.availability = 'OFFLINE'
+            agent.role = role
             agent.max_active_chats = 5
             db.flush()
             db.execute(delete(AgentSession).where(AgentSession.agent_id == agent.id))
@@ -41,7 +43,7 @@ def main():
     local = Path(__file__).resolve().parents[2] / '.local'
     local.mkdir(exist_ok=True)
     (local / 'agent-credentials.txt').write_text(f'Email: agent@example.com\nPassword: {password}\n', encoding='utf-8')
-    print('Local T1 sample accounts reset: agent@example.com and mia@example.com.')
+    print('Local sample accounts reset: agent@example.com, lead@example.com.')
     print('Previous sample-account sessions revoked. Updated login is in .local/agent-credentials.txt.')
 
 

@@ -11,12 +11,17 @@ from .config import settings
 from .models import Agent, AgentSession
 from .schemas import AgentRead, LoginRequest
 from .ticket_routes import router as ticket_router
-from .security import COOKIE_NAME, CurrentAgent, Db, dummy_hash, password_hasher, token_digest
-from .routing import dispatch_waiting, lock_routing
+from .security import COOKIE_NAME, CurrentStaff, Db, dummy_hash, password_hasher, token_digest
+from .routing import dispatch_waiting, lock_routing, return_to_pool
 from .queue_worker import lifespan
+from .help_content import router as help_router
+from .admin_routes import router as admin_router
+from .attachment_routes import router as attachment_router
+from .upload_limit import UploadLimitMiddleware
 
 
 app = FastAPI(title="Badi eSIM Support API", version="0.2.0", lifespan=lifespan)
+app.add_middleware(UploadLimitMiddleware)
 logger = logging.getLogger(__name__)
 
 
@@ -54,11 +59,12 @@ def health(db: Db):
 def login(body: LoginRequest, response: Response, db: Db):
     agent = db.scalar(select(Agent).where(Agent.email == str(body.email).lower()))
     valid = password_hasher.verify(body.password, agent.password_hash if agent else dummy_hash)
-    if not valid or agent is None:
+    if not valid or agent is None or not agent.is_active:
         raise HTTPException(status_code=401, detail="Email or password is incorrect.")
 
     lock_routing(db)
     agent.is_available = True
+    agent.availability = 'ONLINE'
 
     # The opaque token is HttpOnly, not JavaScript-readable or in localStorage.
     token = secrets.token_urlsafe(32)
@@ -75,7 +81,15 @@ def login(body: LoginRequest, response: Response, db: Db):
 
 
 @app.get("/auth/me", response_model=AgentRead)
-def me(agent: CurrentAgent):
+def me(agent: CurrentStaff):
+    return agent
+
+
+@app.post('/auth/heartbeat', response_model=AgentRead)
+def heartbeat(request: Request, db: Db, agent: CurrentStaff):
+    session = db.get(AgentSession, token_digest(request.cookies[COOKIE_NAME]))
+    session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
     return agent
 
 
@@ -92,9 +106,17 @@ def logout(request: Request, response: Response, db: Db):
                 AgentSession.agent_id == agent_id, AgentSession.expires_at > datetime.now(timezone.utc)
             ).limit(1))
             if not other_session:
-                db.get(Agent, agent_id).is_available = False
+                staff = db.get(Agent, agent_id)
+                staff.is_available = False
+                staff.availability = 'OFFLINE'
+                return_to_pool(db, agent_id, 'Last staff session signed out.')
+        db.flush()
+        dispatch_waiting(db)
         db.commit()
     response.delete_cookie(COOKIE_NAME, secure=settings.cookie_secure, httponly=True, samesite="strict")
 
 
 app.include_router(ticket_router)
+app.include_router(help_router)
+app.include_router(admin_router)
+app.include_router(attachment_router)

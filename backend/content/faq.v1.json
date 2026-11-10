@@ -1,0 +1,58 @@
+{
+  "revision": "badi-faq-2026-11-10-r1",
+  "reviewed_on": "2026-11-10",
+  "source_url": "https://badiesim.com/help/faq",
+  "source_api": "https://badiesim.com/api/v1/legal/en/faq",
+  "source_content_sha256": "3e8b68b44a02c78fa676291ff58ea236bbf38494092052074da93bf2f2b0c98a",
+  "editorial_note": "Concise support adaptations of the published FAQ. Check the original page for complete and current terms.",
+  "items": [
+    {
+      "id": "activation",
+      "category": "ACTIVATION",
+      "question": "How do I activate Badi?",
+      "answer": "Choose a plan in the Badi app and follow activation instructions. Your device must support eSIM."
+    },
+    {
+      "id": "connectivity",
+      "category": "CONNECTIVITY",
+      "question": "Why is there no internet?",
+      "answer": "Check activation, coverage and mobile data, then restart your device. If the issue continues, start a support chat."
+    },
+    {
+      "id": "compatibility",
+      "category": "INSTALLATION",
+      "question": "Will my device work?",
+      "answer": "Check compatibility in the Badi app. For carrier-locked devices, confirm eSIM support with your manufacturer or carrier."
+    },
+    {
+      "id": "topup",
+      "category": "TOPUP",
+      "question": "How can I get more data?",
+      "answer": "Check your balance and buy additional data in the Badi app. Plans are prepaid and do not auto-renew."
+    },
+    {
+      "id": "hotspot",
+      "category": "CONNECTIVITY",
+      "question": "Can I use a hotspot?",
+      "answer": "Hotspot is supported and uses your plan’s data. Device limits and network conditions can affect performance."
+    },
+    {
+      "id": "coverage",
+      "category": "ORDER",
+      "question": "Is my destination covered?",
+      "answer": "Check current destination coverage and plan details in the Badi app or website before purchasing."
+    },
+    {
+      "id": "refund",
+      "category": "REFUND",
+      "question": "Can I request a refund?",
+      "answer": "Refund eligibility depends on Badi’s terms. Contact support to discuss your purchase."
+    },
+    {
+      "id": "security",
+      "category": "OTHER",
+      "question": "Lost device or suspicious activity?",
+      "answer": "Contact Badi support promptly for help securing your account."
+    }
+  ]
+}

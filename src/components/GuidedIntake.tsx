@@ -1,15 +1,15 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { api, categories, label } from '../api'
+import { api, categories, label, timestamp } from '../api'
 
 type Step = 'email' | 'category' | 'description' | 'order' | 'review'
 const steps: Step[] = ['email', 'category', 'description', 'order', 'review']
 const prompts = {
-  email: 'Hi! Before I find an agent, what’s your email address?',
-  category: 'What can we help you with? Choose below, or type a category.',
-  description: 'In a few words, what’s happening? Type your own description, or choose an example that matches your issue.',
-  order: 'Do you have an order ID? You can type it below or skip for now.',
-  review: 'Here’s your summary. Shall I start your support chat?',
+  email: 'I’m glad you reached out. Before I find the right support for you, what’s your email address?',
+  category: 'Thank you. We’ll take this one step at a time—what can we help you with? Choose below, or type a category.',
+  description: 'I’m sorry this is getting in the way of your journey. Tell me briefly what’s happening, or choose an example that matches your issue.',
+  order: 'Thanks for explaining. An order ID can help your agent find the details faster. You can type it below, or skip if it’s not handy.',
+  review: 'Thank you for sharing that with me. I’ve prepared this summary so you won’t need to repeat everything. Shall we join the support queue?',
 }
 const examples: Record<string, string[]> = {
   INSTALLATION: ['My eSIM QR code won’t scan.', 'I can’t install my eSIM.'],
@@ -38,7 +38,17 @@ export function GuidedIntake({ onSubmit, onCancel }: {
 }) {
   // Questions and unsent answers stay in React memory. Only confirmation creates
   // a SQL ticket; quick replies and the typed composer use the same handlers.
-  const [step, setStep] = useState<Step>('email')
+  const [step, updateStep] = useState<Step>('email')
+  const [askedAt, setAskedAt] = useState<Partial<Record<Step, string>>>(() => ({ email: new Date().toISOString() }))
+  const [answeredAt, setAnsweredAt] = useState<Partial<Record<Step, string>>>({})
+
+  // Intake times live only in this draft. The server timestamps saved messages.
+  function setStep(next: Step) {
+    const now = new Date().toISOString()
+    setAnsweredAt((times) => ({ ...times, [step]: now }))
+    setAskedAt((times) => ({ ...times, [next]: now }))
+    updateStep(next)
+  }
   const [email, setEmail] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
@@ -127,7 +137,7 @@ export function GuidedIntake({ onSubmit, onCancel }: {
     <div className="intake-heading"><div className="chat-title-block"><span className="support-avatar" aria-hidden="true">b</span><div><h2>Chat with an Agent</h2><p>{busy ? step === 'review' ? 'Starting your conversation…' : 'Preparing your summary…' : 'Badi assistant · A few details before we connect you'}</p></div></div><button className="chat-close" type="button" aria-label="Cancel chat setup" onClick={onCancel} disabled={busy}>×</button></div>
     <div className="intake-history" ref={viewport} role="log" aria-label="Support setup conversation" aria-live="polite">
       {steps.slice(0, stepIndex + 1).map((value, index) => <div key={value} className="intake-exchange">
-        <div className="assistant-turn"><span className="assistant-label">Badi assistant</span><p>{prompts[value]}</p>
+        <div className="assistant-turn"><span className="assistant-label">Badi assistant</span><p>{prompts[value]}</p><time dateTime={askedAt[value]}>{askedAt[value] && timestamp(askedAt[value])}</time>
           {value === step && step === 'category' && <div className="quick-replies" role="group" aria-label="Pick a category">{categories.map((option) => <button type="button" key={option} disabled={busy} onClick={() => chooseCategory(option)}>{label(option)}</button>)}</div>}
           {value === step && step === 'description' && <div className="quick-replies issue-choices" role="group" aria-label="Common issues">{examples[category]?.map((option) => <button type="button" key={option} disabled={busy} onClick={() => void describe(option)}>{option}</button>)}</div>}
           {value === step && step === 'order' && <div className="quick-replies"><button type="button" disabled={busy} onClick={skipOrder}>Skip for now</button></div>}
@@ -136,7 +146,7 @@ export function GuidedIntake({ onSubmit, onCancel }: {
             <div className="quick-replies"><button type="button" className="confirm-quick-reply" disabled={busy} onClick={() => void confirm()}>{busy ? 'Starting…' : 'Confirm and start chat'}</button><button type="button" disabled={busy} onClick={() => goTo('email')}>Edit answers</button></div>
           </>}
         </div>
-        {index < stepIndex && <div className="intake-answer"><p>{answers[value]}</p></div>}
+        {index < stepIndex && <div className="intake-answer"><p>{answers[value]}</p><time dateTime={answeredAt[value]}>{answeredAt[value] && timestamp(answeredAt[value])}</time></div>}
       </div>)}
     </div>
     {error && <p className="error intake-error" role="alert">{error}</p>}

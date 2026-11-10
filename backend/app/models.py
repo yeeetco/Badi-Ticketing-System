@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Identity, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Identity, Integer, LargeBinary, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
@@ -11,6 +11,8 @@ class Agent(Base):
     __table_args__ = (
         CheckConstraint("tier IN ('T1','T2')", name='valid_agent_tier'),
         CheckConstraint('max_active_chats BETWEEN 1 AND 20', name='valid_agent_capacity'),
+        CheckConstraint("role IN ('AGENT','TEAM_LEAD','ADMIN')", name='valid_staff_role'),
+        CheckConstraint("availability IN ('ONLINE','BREAK','OFFLINE')", name='valid_availability'),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -21,6 +23,10 @@ class Agent(Base):
     is_available: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
     max_active_chats: Mapped[int] = mapped_column(Integer, default=5, server_default='5')
     last_routed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    role: Mapped[str] = mapped_column(String(20), default='AGENT', server_default='AGENT')
+    area: Mapped[str] = mapped_column(String(80), default='BADI_SUPPORT', server_default='BADI_SUPPORT')
+    availability: Mapped[str] = mapped_column(String(10), default='OFFLINE', server_default='OFFLINE')
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
 
 
 class AgentSession(Base):
@@ -30,6 +36,7 @@ class AgentSession(Base):
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Ticket(Base):
@@ -54,6 +61,11 @@ class Ticket(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     customer_access_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    area: Mapped[str] = mapped_column(String(80), default='BADI_SUPPORT', server_default='BADI_SUPPORT')
+    emergency_closed: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+    # Persist the returning handler's exclusion across API/worker restarts.
+    requeue_agent_id: Mapped[int | None] = mapped_column(ForeignKey('agents.id', ondelete='SET NULL'))
+    requeue_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     @property
     def number(self) -> str:
@@ -75,6 +87,20 @@ class TicketMessage(Base):
     kind: Mapped[str] = mapped_column(String(10), default="PUBLIC")
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    attachments: Mapped[list['Attachment']] = relationship(lazy='selectin', passive_deletes=True)
+
+
+class Attachment(Base):
+    __tablename__ = 'attachments'
+    __table_args__ = (CheckConstraint('size > 0 AND size <= 2097152', name='valid_attachment_size'),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey('ticket_messages.id', ondelete='CASCADE'), index=True)
+    filename: Mapped[str] = mapped_column(String(200))
+    content_type: Mapped[str] = mapped_column(String(80))
+    size: Mapped[int] = mapped_column(Integer)
+    # Keep binary data out of message snapshots; downloads have a separate ACL.
+    payload: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
 
 
 class TicketEvent(Base):
@@ -87,3 +113,4 @@ class TicketEvent(Base):
     old_value: Mapped[str | None] = mapped_column(String(100))
     new_value: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reason: Mapped[str | None] = mapped_column(Text)

@@ -67,7 +67,7 @@ def test_management_and_audit_are_atomic_and_validate_agent(client):
     ticket_id = create_customer(client)['ticket']['id']
     sign_in(client)
     agent_id = client.get('/auth/me').json()['id']
-    changed = client.patch(f'/tickets/{ticket_id}', json={'status': 'IN_PROGRESS', 'priority': 'URGENT', 'assigned_agent_id': agent_id})
+    changed = client.patch(f'/tickets/{ticket_id}', json={'status': 'IN_PROGRESS', 'priority': 'URGENT'})
     assert changed.status_code == 200
     events = changed.json()['events']
     assert any(event['field'] == 'status' and event['old_value'] == 'OPEN' and event['new_value'] == 'IN_PROGRESS' for event in events)
@@ -77,7 +77,7 @@ def test_management_and_audit_are_atomic_and_validate_agent(client):
     assert len(client.patch(f'/tickets/{ticket_id}', json={'status': 'IN_PROGRESS'}).json()['events']) == count
     assert client.patch(f'/tickets/{ticket_id}', json={'assigned_agent_id': 99999}).status_code == 422
     assert client.patch(f'/tickets/{ticket_id}', json={'status': None}).status_code == 422
-    unassigned = client.patch(f'/tickets/{ticket_id}', json={'assigned_agent_id': None}).json()
+    unassigned = client.post(f'/tickets/{ticket_id}/return-to-queue', json={}).json()
     assert unassigned['assigned_agent_id'] is None
     assert any(event['field'] == 'assigned_agent_id' and event['new_value'] is None for event in unassigned['events'])
 
@@ -89,7 +89,9 @@ def test_reassignment_and_queue_filters(client):
         db.add(Agent(name='Second Agent', email='second@example.com', password_hash=password_hasher.hash('another-long-password')))
         db.commit()
         second_id = db.scalar(select(Agent.id).where(Agent.email == 'second@example.com'))
-    assert client.patch(f'/tickets/{ticket_id}', json={'assigned_agent_id': second_id}).status_code == 200
+    client.post('/auth/login', json={'email': 'second@example.com', 'password': 'another-long-password'})
+    sign_in(client)
+    assert client.post(f'/tickets/{ticket_id}/transfer', json={'agent_id': second_id}).status_code == 200
     assert len(client.get(f'/tickets?assigned_agent_id={second_id}&category=CONNECTIVITY&priority=MEDIUM&status=OPEN').json()) == 1
     assert client.get('/tickets?unassigned=true').json() == []
     assert len(client.get('/tickets?q=BD-1001').json()) == 1
@@ -104,7 +106,7 @@ def test_closed_ticket_blocks_public_messages_and_can_be_reopened(client):
     assert client.post(f'/tickets/{ticket_id}/messages', json={'body': 'Agent message'}).status_code == 409
     assert client.post(f'/tickets/{ticket_id}/messages', json={'body': 'Private wrap-up', 'kind': 'INTERNAL'}).status_code == 201
     client.patch(f'/tickets/{ticket_id}', json={'status': 'RESOLVED'})
-    assert client.post(f'/customer/tickets/{ticket_id}/messages', json={'body': 'It is still not working.'}).status_code == 201
+    assert client.post(f'/customer/tickets/{ticket_id}/messages', json={'body': 'It is still not working.'}).status_code == 409
     assert client.get(f'/tickets/{ticket_id}').json()['status'] == 'RESOLVED'
     client.patch(f'/tickets/{ticket_id}', json={'status': 'WAITING_FOR_CUSTOMER'})
     client.post(f'/customer/tickets/{ticket_id}/messages', json={'body': 'Here are the requested details.'})

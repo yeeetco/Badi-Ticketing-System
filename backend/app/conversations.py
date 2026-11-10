@@ -18,8 +18,20 @@ from .routing import ACTIVE_STATUSES, dispatch_waiting, lock_routing
 CUSTOMER_COOKIE = 'badi_customer_ticket'
 
 
-def ticket_or_404(db: Session, ticket_id: int, lock=False) -> Ticket:
+def status_note(db: Session, ticket: Ticket, actor: str, before: str, after: str, reason: str | None = None):
+    """Automatic workflow entries are private messages, committed with the change."""
+    readable = lambda value: value.replace('_', ' ').capitalize()
+    body = f'{actor} changed the status from {readable(before)} to {readable(after)}.'
+    if reason:
+        body += f' Reason: {reason}'
+    db.add(TicketMessage(ticket_id=ticket.id, sender_role='AGENT', sender_name='System update',
+                         kind='INTERNAL', body=body, created_at=datetime.now(timezone.utc)))
+
+
+def ticket_or_404(db: Session, ticket_id: int, lock=False, staff: Agent | None = None) -> Ticket:
     query = select(Ticket).where(Ticket.id == ticket_id)
+    if staff:
+        query = query.where(Ticket.area == staff.area)
     ticket = db.scalar(query.with_for_update() if lock else query)
     if ticket is None:
         raise HTTPException(404, 'Ticket not found.')
@@ -46,7 +58,7 @@ def customer_view(db: Session, ticket: Ticket) -> CustomerTicket:
     position = None
     if ticket.assigned_agent_id is None and not complete:
         position = db.scalar(select(func.count(Ticket.id)).where(
-            Ticket.assigned_agent_id.is_(None), Ticket.status.in_(ACTIVE_STATUSES),
+            Ticket.assigned_agent_id.is_(None), Ticket.status.in_(ACTIVE_STATUSES), Ticket.area == ticket.area,
             or_(Ticket.created_at < ticket.created_at,
                 (Ticket.created_at == ticket.created_at) & (Ticket.id <= ticket.id)),
         ))
@@ -71,16 +83,16 @@ def agent_view(db: Session, ticket: Ticket) -> TicketDetail:
     )
 
 
-def record_event(db: Session, ticket: Ticket, actor: str, field: str, before, after):
+def record_event(db: Session, ticket: Ticket, actor: str, field: str, before, after, reason=None):
     db.add(TicketEvent(ticket_id=ticket.id, actor=actor, field=field,
                        old_value=str(before) if before is not None else None,
-                       new_value=str(after) if after is not None else None))
+                       new_value=str(after) if after is not None else None, reason=reason))
 
 
 def new_ticket(db: Session, body: TicketCreate, agent: Agent | None = None):
     lock_routing(db)
     code = secrets.token_urlsafe(32)
-    ticket = Ticket(**body.model_dump(), status='OPEN', customer_access_hash=token_digest(code))
+    ticket = Ticket(**body.model_dump(), status='OPEN', customer_access_hash=token_digest(code), area=agent.area if agent else 'BADI_SUPPORT')
     db.add(ticket)
     db.flush()
     sender = agent.name if agent else ticket.customer_email
@@ -109,8 +121,10 @@ def add_message(db: Session, ticket: Ticket, body: str, kind: str, sender_name: 
     return MessageRead.model_validate(message)
 
 
-def queue_view(db: Session, status=None, priority=None, category=None, assigned_agent_id=None, unassigned=False, q='', limit=100):
+def queue_view(db: Session, status=None, priority=None, category=None, assigned_agent_id=None, unassigned=False, q='', limit=100, area=None):
     query = select(Ticket)
+    if area:
+        query = query.where(Ticket.area == area)
     for field, value in [('status', status), ('priority', priority), ('category', category), ('assigned_agent_id', assigned_agent_id)]:
         if value is not None:
             query = query.where(getattr(Ticket, field) == value)

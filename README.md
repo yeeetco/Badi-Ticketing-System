@@ -9,7 +9,10 @@ Customers start a guided chat, receive an automatically generated ticket summary
 - Customer: `#/` -> `#/support` -> guided email/category/issue intake -> generated summary -> T1 queue -> live conversation. Existing tickets use private access.
 - Agent: open `#/agent` directly -> sign in -> filtered live queue -> conversation and case controls.
 
-The public navigation has no agent link. The URL itself is not a security boundary: FastAPI checks a valid agent session before returning ticket data. There is no separate admin role.
+Public navigation has no staff link. Staff sign in at `#/agent`; SQL roles
+select the operator desk or TEAM_LEAD monitoring view. Both are area-scoped.
+The leader can monitor and emergency-close with an audit reason, but cannot
+send replies or notes. See the [permissions and session guide](docs/staff-and-support.md).
 
 ## Docker PostgreSQL setup (recommended)
 
@@ -193,8 +196,11 @@ agent eligibility, capacity rules, and local sample-account reset instructions.
 | `src/pages/AgentWorkspace.tsx` | Queue, filters, conversation selection, case controls, and audit display |
 | `src/components/ChatThread.tsx` | Shared message bubbles, timestamps, public/private composers, and draft handling |
 | `src/components/GuidedIntake.tsx` | Customer questions and generated-summary review |
+| `src/components/CustomerBot.tsx` | New help and private-code recovery inside the bot |
+| `src/components/FaqPanel.tsx` | Searchable reviewed Badi FAQ revision |
 | `src/components/TicketForm.tsx` | Agent-only manual creation form |
-| `src/components/RoutingPanel.tsx` | Live T1 pool and own availability/capacity controls |
+| `src/components/StaffAccountMenu.tsx` | Avatar menu for availability, capacity and sign-out |
+| `src/pages/FaqPage.tsx` | Separate FAQ route |
 | `src/hooks/useLiveQuery.ts` | Initial access check, SSE connection, and automatic reconnect |
 | `src/api.ts` | TypeScript data types and HTTP request helper |
 | `backend/app/ticket_routes.py` | Ticket, message, management, customer-access, and stream endpoints |
@@ -225,14 +231,17 @@ queue message in `AgentWorkspace.tsx`.
    approximately one second, without refreshing either page.
 5. Add an internal note as the agent. It must appear only in the agent window.
 6. Change status, priority, or assignment. Inspect the activity history.
-7. Leave the customer ticket, then return with its number and access code.
+7. Start another chat and tell the assistant you have a ticket code. Active cases resume; completed ones offer history. A valid cookie restores the case automatically on refresh.
 8. Try a phone-sized window, or temporarily take the customer browser offline
    and reconnect. The current history reloads automatically.
 
-The seed provides `agent@example.com` (Badi Support). When run through either
-setup helper, it also provides `mia@example.com` (Mia Support), using the same
-local demo password, so reassignment can be tested. These are development
-accounts only. Seeding preserves existing accounts and tickets.
+The sample logins are `agent@example.com` (Badi Support) and
+`lead@example.com` (TEAM_LEAD), using the existing local password in
+`.local/agent-credentials.txt`. Mia was consolidated into Badi Support;
+the Mia login is retired. Transfer actions support additional operator accounts
+when they are added. See [the staff guide](docs/staff-and-support.md#account-menu-handoff-and-reset)
+for availability, handoff, five-minute return cooldowns, and the explicit local
+test-data reset.
 
 ## Where data lives and what a click does
 
@@ -243,8 +252,9 @@ accounts only. Seeding preserves existing accounts and tickets.
   PostgreSQL ticket, initial public message, creation and routing events. A
   PostgreSQL identity generates the readable `BD-1001` number; new status is
   `OPEN`. Existing descriptions were preserved as initial messages by migration.
-- **Returning customer:** the backend checks a ticket number plus a random
-  private access code. Only the code's SHA-256 hash is stored in PostgreSQL.
+- **Returning customer:** a remembered cookie restores the case automatically.
+  Otherwise the bot asks for a private access code. Only its SHA-256 hash is
+  stored in PostgreSQL; email and ticket numbers alone do not unlock a case.
   The browser receives an HttpOnly, SameSite=Strict cookie for that ticket.
   The raw code is shown at creation and is never included in a URL or stored
   in localStorage. Email alone cannot grant ticket access. The remembered
@@ -258,7 +268,8 @@ accounts only. Seeding preserves existing accounts and tickets.
 - **Internal note:** only an authenticated agent can submit `kind: INTERNAL`.
   Customer schemas reject that field. Both customer REST responses and SSE
   snapshots query PUBLIC messages only and omit the agent audit history and
-  assignment. Database constraints also prohibit customer-authored notes.
+  private assignment metadata. The assigned handler's name is shown to the
+  customer. Database constraints also prohibit customer-authored notes.
 - **Management:** the agent controls send PATCH requests. FastAPI locks the
   ticket, validates the selected agent/status/priority, and commits each change
   with its before/after audit event in the same transaction. No-op changes do
@@ -289,7 +300,9 @@ current state, including messages saved while offline. The indicator means
 At larger scale, replace the periodic checks with PostgreSQL LISTEN/NOTIFY or
 a message broker. Multiple tabs use separate HTTP streams; production hosting
 must support streaming, disable proxy buffering, and use an appropriate idle
-timeout. Typing indicators, presence, and read receipts remain out of scope.
+timeout. Typing indicators and read receipts remain out of scope. Staff state
+uses Online/Break/Offline and a heartbeat; stale or offline handles return to
+the pool. See the staff guide for the 20-second/90-second timing rules.
 
 ## API
 
@@ -300,15 +313,18 @@ allowed Origin header. Vite forwards `/api/...` to FastAPI on port 8000.
 | --- | --- | --- |
 | GET | `/health` | Database connectivity |
 | POST | `/auth/login`, `/auth/logout` | Agent session creation/revocation |
+| POST | `/auth/heartbeat` | Staff freshness without overriding an explicit Offline state |
+| GET | `/help/faq` | Reviewed local FAQ revision and attribution |
 | GET | `/auth/me`, `/agents` | Agent profile / assignment directory |
 | GET | `/tickets` | Agent queue: status, priority, category, assigned_agent_id, unassigned, q, limit |
 | POST | `/tickets` | Agent-created ticket; returns private customer code once |
 | GET / PATCH | `/tickets/{id}` | Agent conversation / audited case management |
 | POST | `/tickets/{id}/messages` | Agent PUBLIC reply or INTERNAL note |
+| POST | `/tickets/{id}/emergency-close` | Area team leader only; mandatory audited reason |
 | GET | `/tickets/live`, `/tickets/{id}/live` | Authorized live queue / full agent conversation |
 | POST | `/customer/intake/summary` | Preview local subject from category and description |
 | POST | `/customer/tickets` | Answers only; generated OPEN/MEDIUM metadata, T1 routing, private access code |
-| GET | `/routing`, `/routing/live` | Agent-only client pool and workload |
+| GET | `/routing`, `/routing/live` | Area-scoped staff pool and workload |
 | PATCH | `/agents/me/availability` | Own accepting state and capacity |
 | POST | `/customer/access` | Restore access using ticket_number and access_code |
 | GET / POST | `/customer/session`, `/customer/logout` | Current customer ticket / leave ticket |
@@ -332,7 +348,7 @@ npm.cmd run build
 npm.cmd run lint
 ```
 
-The 24 backend tests migrate a fresh `badi_test_<uuid>` PostgreSQL schema for
+The 32 backend tests migrate a fresh `badi_test_<uuid>` PostgreSQL schema for
 each test, then drop only that schema. They cover session revocation, expiry,
 CSRF, input validation, ticket numbering, ownership, private-note filtering,
 audit history, assignment/reassignment, filters, closed/reopened cases, and
@@ -340,7 +356,7 @@ filtered/reconnecting SSE snapshots, generated metadata, forged customer
 workflow fields, T1 eligibility, FIFO/capacity/fairness, and concurrent arrivals.
 Demo tables are never cleared.
 
-For the three browser tests:
+For the four browser tests:
 
 ```powershell
 npx.cmd playwright install chromium
@@ -354,8 +370,9 @@ retention, independent public/private drafts, switching-case draft retention,
 guided intake, automatic routing, assignment, status/priority changes, offline
 recovery, private ticket return, logout, and mobile overflow checks. The second
 test verifies the running background worker after an agent frees capacity.
-The third checks inline assistant choices, manually typed category answers,
-the simplified chat header, and POST requests from localhost on port 5173.
+The third checks inline assistant choices, typed categories, FAQ and localhost
+requests. The fourth checks parking states, offline requeueing, session
+restoration, supervisor restrictions, and audited emergency closure.
 Screenshots stay in ignored `.local`.
 The test expects the seeded demo agents and the original sample QR-code ticket.
 
@@ -378,3 +395,37 @@ References: [FastAPI](https://fastapi.tiangolo.com/),
 [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events),
 [Docker PostgreSQL](https://hub.docker.com/_/postgres), and
 [Playwright](https://playwright.dev/docs/test-configuration).
+
+
+## Administrator and attachment update
+
+See [role architecture and enforcement](docs/roles-and-access.md) for the
+Customer / Agent / Team leader / Administrator permission matrix and data flow.
+Administrator sign-in is available at `http://localhost:5173/#/admin`; the local
+generated login is in ignored `.local/admin-credentials.txt`. Existing agent and
+leader passwords are unchanged. The Administrator workspace manages staff
+profiles, role assignment, enabled state, password resets, and account deletion.
+
+Apply migration 0006 and install the updated `backend/requirements.txt` on a
+fresh checkout. `python -m app.bootstrap_admin` (with backend on PYTHONPATH)
+creates the first local admin without changing an existing administrator.
+
+Customer chat supports one PDF, PNG, JPEG, GIF, or WebP attachment per message,
+up to 2 MiB. Validation happens in both React and FastAPI; PostgreSQL persists
+bytes privately. Customer and staff downloads require case access. End Chat
+clears the customer browser session and preserves the agent-controlled case.
+The agent workspace has no new-ticket control; transfer choices expand only
+after Transfer conversation is clicked.
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| GET / POST | `/admin/users` | Administrator: list / create staff |
+| GET / PUT / DELETE | `/admin/users/{id}` | Administrator: read / edit profile and role / delete |
+| POST | `/customer/tickets/{id}/attachments` | Authorized active customer case, multipart file + optional body |
+| GET | `/customer/tickets/{id}/attachments/{attachment_id}` | Customer public case attachment |
+| GET | `/tickets/{id}/attachments/{attachment_id}` | Agent / leader in the case's area |
+
+Browser checks also cover attachment validation, live delivery, downloads,
+session ending, conditional transfer controls, and Administrator CRUD on desktop
+and mobile. These checks close their own verification conversations and delete
+only the staff accounts they created.

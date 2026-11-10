@@ -19,12 +19,11 @@ def main():
                 raise SystemExit("Please use at least 12 characters.")
             db.add(Agent(email=email, name="Badi Support", password_hash=password_hasher.hash(password)))
 
-        # A second demo agent lets you test assignment and reassignment. The
-        # setup helpers supply the local demo password; direct seed reruns do
-        # not silently reset an existing account's password.
+        # Keep one sample operator. Additional operators are created explicitly.
         demo_password = os.environ.get('DEMO_AGENT_PASSWORD')
-        if demo_password and db.scalar(select(Agent).where(Agent.email == 'mia@example.com')) is None:
-            db.add(Agent(email='mia@example.com', name='Mia Support', password_hash=password_hasher.hash(demo_password)))
+        if demo_password and db.scalar(select(Agent).where(Agent.email == 'lead@example.com')) is None:
+            db.add(Agent(email='lead@example.com', name='Badi Team Lead', role='TEAM_LEAD', area='BADI_SUPPORT',
+                         password_hash=password_hasher.hash(demo_password)))
 
         # Check each seed by its identifying values so rerunning doesn't duplicate.
         examples = [
